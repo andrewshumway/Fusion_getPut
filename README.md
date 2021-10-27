@@ -16,7 +16,8 @@ $ getApp.sh --help
 
 usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-z ZIP] [-u USER]
                  [--password PASSWORD] [--protocol PROTOCOL] [--port PORT]
-                 [-v] [--keep KEEP] [--debug]
+                 [-v] [--f5] [--skipCollections SKIPCOLLECTIONS] [--debug]
+                 [--noVerify] [--humanReadable]
 
 ______________________________________________________________________________
 Get artifacts associated with a Fusion app and store them together in a folder 
@@ -38,9 +39,13 @@ optional arguments:
   --protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
   --port PORT           Fusion Port, default: ${lw_PORT} or 8764
   -v, --verbose         Print details, default: False.
-  --f5                  Remove the /apollo/ section of request urls as required by 5.2: (default False)."
-  --keep KEEP           Comma delimited list of signals collections to keep, default=None.
+  --f5                  Remove the /apollo/ section of request urls as required by 5.2: default=True
+  --skipCollections SKIPCOLLECTIONS
+                        Comma delimited list of collection name suffixes to skip, e.g. _signals, default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
   --debug               Print debug messages while running, default: False.
+  --noVerify            Do not verify SSL certificates if using https, default: False.
+  --humanReadable       copy JS scripts to a human readable format, default: False.
+
 
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
@@ -73,12 +78,12 @@ optional arguments:
   --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
   --ignoreExternal      Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False
   -v, --verbose         Print details, default: False.
-  --humanReadable       Named for consistency with getApp.  This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.
+  --humanReadable       This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.
   --varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
   --makeAppCollections  Do create the default collections named after the App default: False.
   --doRewrite DOREWRITE
                         Import query rewrite objects (if any), default: False.
-  --f5                  Remove the /apollo/ section of request urls as required by 5.3: False.
+  --f5                  Remove the /apollo/ section of request urls as required by 5.2: Default=True.
   --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.

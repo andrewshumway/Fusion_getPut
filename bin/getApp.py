@@ -63,7 +63,9 @@ OBJ_TYPES = {
     ,"searchCluster": "SC"
 }
 
-SKIP_COLLECTIONS = ["_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"]
+# default is to skip "_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"
+# as listed in the skipCollections param
+SKIP_COLLECTIONS = []
 searchClusters = {}
 collections = []
 
@@ -92,6 +94,7 @@ def applySuffix(f,type):
 
 
 def initArgs():
+    global SKIP_COLLECTIONS
     env = {} #some day we may get better environment passing
     debug( 'initArgs start')
 
@@ -115,19 +118,22 @@ def initArgs():
         if args.zip == None:
             sys.exit("either the --app or the --zip argument is required.  Can not proceed.")
 
-    if args.dir == None:
+    if args.dir is None and args.zip is not None:
         # make default dir name
         defDir = str(args.app) + "_" + datetime.datetime.now().strftime('%Y%m%d_%H%M')
         args.dir = defDir
-    elif os.sep not in args.dir:
-        defDir = args.dir
+    elif args.dir is None and args.zip is not None:
+        defDir = str(args.zip) + "_" + datetime.datetime.now().strftime('%Y%m%d_%H%M')
         args.dir = defDir
-    if args.keepCollections == None:
-        args.keepCollections = []
+
+    # default passes a comma delimited string of things to skip
+    if args.skipCollections is not None and str(args.skipCollections) != "":
+        SKIP_COLLECTIONS = args.skipCollections.split(",")
+
+    if args.f5 is not None and args.f5.lower() == "false":
+        args.f5 = False
     else:
-        args.keepCollections = args.keepCollections.split(',')
-
-
+        args.f5 = True
 
 def initArgsFromMaps(key, default, penv,env):
     # Python3: dict.has_key -> key in dict
@@ -404,14 +410,14 @@ def collectCollections(elements,type="collections"):
 
 
 def shouldKeepCollection(id,e):
-    skip = False;
+    '''
+    :param id: collection name
+    :return: True if the collection and configset should be written out
+    '''
+    # Keep everything except what's in the Skip list
     for cType in SKIP_COLLECTIONS:
-        skip = id.endswith(cType)
-        if skip:
-            break
-    # skip unless args.keepCollections set for this collection id
-    if skip:
-        return id in args.keepCollections
+        if id.endswith(cType):
+            return False
     return True
 
 def collectIndexPipelines(elements):
@@ -457,8 +463,9 @@ if __name__ == "__main__":
     parser.add_argument("--protocol", help="REST Protocol,  default: ${lw_PROTOCOL} or 'http'.")
     parser.add_argument("--port", help="Fusion Port, default: ${lw_PORT} or 8764") #,default="8764"
     parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
-    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2: False.",default=False,action="store_true")# default=False
-    parser.add_argument("--keepCollections", help="Comma delimited list of special collections to keep e.g. *_signals, default=None (skip all special collections).",default=None) #,default="password123"
+    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2: default=True.",default=True)# default=False
+    parser.add_argument("--skipCollections", help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs"
+                        ,default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
     parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
     parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
     parser.add_argument("--humanReadable",help="copy JS scripts to a human readable format, default: False.",default=False,action="store_true")# default=False

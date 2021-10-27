@@ -136,6 +136,10 @@ def initArgs():
         else:
             sys.exit( "Cannot find or access the " + args.varFile + " file.  Process aborted.")
 
+    if args.f5 is not None and args.f5.lower() == "false":
+        args.f5 = False
+    else:
+        args.f5 = True
 
 def initArgsFromMaps(key, default, penv,env):
     if key in penv:
@@ -647,7 +651,7 @@ if __name__ == "__main__":
     parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
     parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
     parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False)# default=False
-    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.3: False.",default=False,action="store_true")# default=False
+    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2: Default=True.",default=None,action="store_true")# default=False
 
     parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
                                                  "Instead, fail if the collection does not exist.  default: True.",default=True,action="store_true")# default=False
