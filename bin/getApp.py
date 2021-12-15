@@ -130,7 +130,7 @@ def initArgs():
     if args.skipCollections is not None and str(args.skipCollections) != "":
         SKIP_COLLECTIONS = args.skipCollections.split(",")
 
-    if args.f5 is not None and args.f5.lower() == "false":
+    if args.f5 is not None and str(args.f5).lower() == "false":
         args.f5 = False
     else:
         args.f5 = True
@@ -291,6 +291,8 @@ def shouldExtractFile(filename):
     # in 4.0.2 configsets are already unzip so each file can be extracted.  this block should catch 4.0.2 case
     # and shouldExtractConfig will catch the 4.0.1 case
     elif len(path) > 2 and path[0] == 'configsets' and ext != '.zip' and path[1] in collections:
+        if not args.keepLang and "lang" in path:
+            return False
         return True
     return False
 
@@ -350,6 +352,11 @@ def jsonToFile(jData,filename):
     with open(os.path.join(args.dir, filename2), 'w') as outfile:
         # sorting keys makes the output source-control friendly.  Do we also want to strip out
         # timestamp fields?
+        if args.removeVersioning:
+            jData.pop('updates', None)
+            jData.pop('modifiedTime', None)
+            jData.pop('version', None)
+
         outfile.write(json.dumps(jData,indent=4,sort_keys=True,
                                  separators=(', ', ': ') ))
 
@@ -417,6 +424,8 @@ def shouldKeepCollection(id,e):
     # Keep everything except what's in the Skip list
     for cType in SKIP_COLLECTIONS:
         if id.endswith(cType):
+            if args.verbose:
+                sprint(f"Skipping export of {id} collection")
             return False
     return True
 
@@ -463,9 +472,11 @@ if __name__ == "__main__":
     parser.add_argument("--protocol", help="REST Protocol,  default: ${lw_PROTOCOL} or 'http'.")
     parser.add_argument("--port", help="Fusion Port, default: ${lw_PORT} or 8764") #,default="8764"
     parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
-    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2: default=True.",default=True)# default=False
+    parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2.  Set to 'False' for Fusion 4: Default=True.",default=None)# default=False
+    parser.add_argument("--keepLang",help="Keep the language directory and files of configsets.  This is removed by default for brevity.",default=False,action="store_true")
     parser.add_argument("--skipCollections", help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs"
                         ,default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
+    parser.add_argument("--removeVersioning",help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",default=False,action="store_true")
     parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
     parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
     parser.add_argument("--humanReadable",help="copy JS scripts to a human readable format, default: False.",default=False,action="store_true")# default=False
