@@ -136,10 +136,11 @@ try:
             else:
                 sys.exit( "Cannot find or access the " + args.varFile + " file.  Process aborted.")
 
-        if args.f5 is not None and args.f5.lower() == "false":
-            args.f5 = False
+        if args.f4 is None:
+            # enforce default and make type bool
+            args.f4 = False
         else:
-            args.f5 = True
+            args.f4 = True
 
     def initArgsFromMaps(key, default, penv,env):
         if key in penv:
@@ -156,7 +157,7 @@ try:
     # if we are exporting an app then use the /apps/appname bas uri so that exported elements will be linked to the app
     def makeBaseUri(forceLegacy=False):
         base = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        if not args.f5:
+        if args.f4:
             base += "/apollo"
         if not appName or forceLegacy:
             uri = base
@@ -177,7 +178,7 @@ try:
                 if args.verbose:
                     sprint("Substituting value in object " + objName + " for key: " + group)
                 obj = var
-        return obj;
+        return obj
 
     def traverseAndReplace(obj, objName, varMap = None, path=None):
         # short circuit if we have no mappings
@@ -340,7 +341,7 @@ try:
 
         for f in appFiles:
             appsURL = args.protocol + "://" + args.server + ":" + args.port + "/api"
-            if not args.f5:
+            if args.f4:
                 appsURL += "/apollo"
             appsURL += "/apps"
             postUrl = appsURL
@@ -429,7 +430,7 @@ try:
 
     def putSchema(colName):
         schemaUrl = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        if not args.f5:
+        if args.f4:
             schemaUrl += "/apollo"
         schemaUrl += "/collections/" + colName + "/solr-config"
         currentZkFiles = []
@@ -651,7 +652,7 @@ try:
         parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
         parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False)# default=False
-        parser.add_argument("--f5",help="Remove the /apollo/ section of request urls as required by 5.2: Default=True.",default=None,action="store_true")# default=False
+        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=None,action="store_true")# default=False
 
         parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
                                                      "Instead, fail if the collection does not exist.  default: True.",default=True,action="store_true")# default=False

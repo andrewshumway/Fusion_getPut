@@ -16,8 +16,8 @@ $ getApp.sh --help
 
 usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-z ZIP] [-u USER]
                  [--password PASSWORD] [--protocol PROTOCOL] [--port PORT]
-                 [-v] [--f5] [--skipCollections SKIPCOLLECTIONS] [--debug]
-                 [--noVerify] [--humanReadable]
+                 [-v] [--f4] [--keepLang] [--skipCollections SKIPCOLLECTIONS]
+                 [--removeVersioning] [--debug] [--noVerify] [--humanReadable]
 
 ______________________________________________________________________________
 Get artifacts associated with a Fusion app and store them together in a folder 
@@ -37,15 +37,16 @@ optional arguments:
   -u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
   --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
   --protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
-  --port PORT           Fusion Port, default: ${lw_PORT} or 8764
+  --port PORT           Fusion Port, default: ${lw_PORT} or 6764
   -v, --verbose         Print details, default: False.
-  --f5                  Remove the /apollo/ section of request urls as required by 5.2: default=True
+  --f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
+  --keepLang            Keep the language directory and files of configsets.  This is removed by default for brevity.
   --skipCollections SKIPCOLLECTIONS
-                        Comma delimited list of collection name suffixes to skip, e.g. _signals, default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
+                        Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
+  --removeVersioning    Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
   --humanReadable       copy JS scripts to a human readable format, default: False.
-
 
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
@@ -56,7 +57,7 @@ $ putApp.sh --help
 usage: putApp.py [-h] -d DIR [--protocol PROTOCOL] [-s SVR] [--port PORT]
                  [-u USER] [--password PASSWORD] [--ignoreExternal] [-v]
                  [--humanReadable] [--varFile VARFILE] [--makeAppCollections]
-                 [--doRewrite DOREWRITE] [--f5] [--keepCollAlias] [--debug]
+                 [--doRewrite DOREWRITE] [--f4] [--keepCollAlias] [--debug]
                  [--noVerify]
 
 ______________________________________________________________________________
@@ -73,7 +74,7 @@ optional arguments:
   --protocol PROTOCOL   Protocol,  Default: ${lw_PROTOCOL} or 'http'.
   -s SVR, --server SVR  Fusion server to send data to. 
                         Default: ${lw_OUT_SERVER} or 'localhost'.
-  --port PORT           Port, Default: ${lw_PORT} or 8764
+  --port PORT           Port, Default: ${lw_PORT} or 6764
   -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
   --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
   --ignoreExternal      Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False
@@ -83,16 +84,16 @@ optional arguments:
   --makeAppCollections  Do create the default collections named after the App default: False.
   --doRewrite DOREWRITE
                         Import query rewrite objects (if any), default: False.
-  --f5                  Remove the /apollo/ section of request urls as required by 5.2: Default=True.
+  --f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
   --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
-
+ 
 ```
 
  
-`getApp.sh` peforms an App export but then breaks up the resulting `.zip` output into separate files and,for configsets and blobs, directories.
-  * Non-data i.e. system collections and configsets are not exported.
+`getApp.sh` performs an App export but then breaks up the resulting `.zip` output into separate files and,for configsets and blobs, directories.
+  * Non-data i.e. system collections and configsets are not exported by default (see --skipCollections).
   * Supported object types include Blobs, Collections, DataSources, Pipelines, Profiles, Parsers, jobs, and sparkJobs. 
   * Non-supported object types include features, links, and objectGroups.  
   However, whenever possible the `putApp` script will use the `/api/apps/APP_NAME/...` APIs
@@ -149,8 +150,9 @@ This script will fetch all Collections, Datasources, Index Pipelines, and Query 
 
 ### Installation Notes:
 
-Prior to v1.3, these scripts used Python version 2.7. From tag v1.3 onward, Python 3 is needed (developed against 3.9+).
-Some clients such as Windows, do not have a standard Python interpreter so one will need to be installed (https://www.python.org/) and added to the PATH.
-Some clients ship with the `requests` package (from http://python-requests.org). Many however will need to install this via 
-`pip install requests` (CentOS, MacOS).  Pip itself may need installation as well via `yum install`, `brew install`, etc.
+* Prior to v1.3, these scripts used Python version 2.7. From tag v1.3 onward, Python 3 is needed (developed against 3.9+).
+* In v1.3 (and until the bugs were fixed just after v1.3 was released) the --f5 option preferenced Fusion 4 i.e. False.  Some attempts were made to change this default to True but resulted in essoteric bugs.  To reflect the reality that Fusion 5.x is the more current standard, --f5 has been replaced with --f4 which defaults to False.  Setting --f4 will make the scripts Fusion 4 compatible. 
+* Some clients such as Windows, do not have a standard Python interpreter so one will need to be installed (https://www.python.org/) and added to the PATH.
+* Some Python clients ship with the `requests` package (from http://python-requests.org). Many however will need to install this via 
+`pip3 install requests` (CentOS, MacOS).  Pip itself may need installation as well via `yum install`, `brew install`, etc.
  

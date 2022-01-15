@@ -134,10 +134,10 @@ try:
         if args.skipCollections is not None and str(args.skipCollections) != "":
             SKIP_COLLECTIONS = args.skipCollections.split(",")
 
-        if args.f5 is not None and str(args.f5).lower() == "false":
-            args.f5 = False
+        if args.f4 is not None:
+            args.f4 = False
         else:
-            args.f5 = True
+            args.f4 = True
 
 
     def initArgsFromMaps(key, default, penv, env):
@@ -157,7 +157,7 @@ try:
 
     def makeBaseUri():
         uri = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        if not args.f5:
+        if args.f4:
             uri += "/apollo"
         return uri
 
@@ -498,9 +498,9 @@ try:
         parser.add_argument("--port", help="Fusion Port, default: ${lw_PORT} or 6764")  # ,default="8764"
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
-        parser.add_argument("--f5",
-                            help="Remove the /apollo/ section of request urls as required by 5.2.  Set to 'False' for Fusion 4: Default=True.",
-                            default=None)  # default=False
+        parser.add_argument("--f4",
+                            help="Use the /apollo/ section of request urls as required by 4.x.  Default=False.",
+                            default=None, action="store_true")  # default=False
         parser.add_argument("--keepLang",
                             help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
                             default=False, action="store_true")
