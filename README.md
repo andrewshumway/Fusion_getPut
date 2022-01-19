@@ -8,6 +8,11 @@ are also included.
 
 This  can be download or cloned onto a customer's machine but using it locally is often easier.
 
+## Recent changes
+* Prior to v1.3, these scripts used Python version 2.7. From tag v1.3 onward, Python 3 is needed (developed against 3.9+).
+* In v1.3 (and until the bugs were fixed just after v1.3 was released) the --f5 option preferenced Fusion 4 i.e. False.  Some attempts were made to change this default to True but resulted in essoteric bugs.  To reflect the reality that Fusion 5.x is the more current standard, --f5 has been replaced with --f4 which defaults to False.  Setting --f4 will make the scripts Fusion 4 compatible.
+* Support added for Fusion 5 Predictive merchandizer objects templates, zones, and dataModels
+
 ##  Import or Export Fusion Apps
 
 Use `getApp.sh` to export a Fusion App and store it as files in an output directory.

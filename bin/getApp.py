@@ -61,11 +61,15 @@ try:
         , "sparkJobs": 'SPRK'
         , "blobs": "BLOB"
         , "searchCluster": "SC"
+        , "templates": "TPL"
+        , "zones": "ZN"
+        , "dataModels": "DM"
     }
 
     # default is to skip "_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"
     # as listed in the skipCollections param
     SKIP_COLLECTIONS = []
+    SKIP_PREFIX = []
     searchClusters = {}
     collections = []
 
@@ -82,7 +86,7 @@ try:
 
 
     def debug(msg):
-        if args.debug:
+        if args.debug is not None:
             sprint(msg)
 
 
@@ -99,6 +103,7 @@ try:
 
     def initArgs():
         global SKIP_COLLECTIONS
+        global SKIP_PREFIX
         env = {}  # some day we may get better environment passing
         debug('initArgs start')
 
@@ -122,7 +127,7 @@ try:
             if args.zip == None:
                 sys.exit("either the --app or the --zip argument is required.  Can not proceed.")
 
-        if args.dir is None and args.zip is not None:
+        if args.dir is None and args.zip is None:
             # make default dir name
             defDir = str(args.app) + "_" + datetime.datetime.now().strftime('%Y%m%d_%H%M')
             args.dir = defDir
@@ -133,11 +138,8 @@ try:
         # default passes a comma delimited string of things to skip
         if args.skipCollections is not None and str(args.skipCollections) != "":
             SKIP_COLLECTIONS = args.skipCollections.split(",")
-
-        if args.f4 is not None:
-            args.f4 = False
-        else:
-            args.f4 = True
+        if args.skipFilePrefix is not None and str(args.skipFilePrefix) != "":
+            SKIP_PREFIX = args.skipFilePrefix.split(",")
 
 
     def initArgsFromMaps(key, default, penv, env):
@@ -157,6 +159,7 @@ try:
 
     def makeBaseUri():
         uri = args.protocol + "://" + args.server + ":" + args.port + "/api"
+        # args.f4 is a bool as enforced in initParams
         if args.f4:
             uri += "/apollo"
         return uri
@@ -164,9 +167,9 @@ try:
 
     def doHttp(url, usr=None, pswd=None, headers={}):
         response = None
-        if not usr:
+        if usr is None:
             usr = args.user
-        if not pswd:
+        if pswd is None:
             pswd = args.password
 
         verify = not args.noVerify
@@ -181,7 +184,7 @@ try:
     def doHttpJsonGet(url, usr=None, pswd=None):
         response = None
         response = doHttp(url, usr, pswd)
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             contentType = response.headers['Content-Type']
             debug("contentType of response is " + contentType)
             # use a contains check since the contentType may be 'application/json; utf-8' or multi-valued
@@ -189,17 +192,17 @@ try:
                 j = json.loads(response.content)
                 return j
         else:
-            if response and response.status_code == 401 and 'unauthorized' in response.text:
+            if response is not None and response.status_code == 401 and 'unauthorized' in response.text:
                 eprint(
                     "Non OK response of " + str(response.status_code) + " for URL: " + url + "\nCheck your password\n")
-            elif response and response.status_code:
+            elif response is not None and response.status_code:
                 eprint("Non OK response of " + str(response.status_code) + " for URL: " + url)
 
 
     def doHttpZipGet(url, usr=None, pswd=None):
         response = None
         response = doHttp(url, usr, pswd)
-        if response and response.status_code == 200:
+        if response is not None and response.status_code == 200:
             contentType = response.headers['Content-Type']
             debug("contentType of response is " + contentType)
             # use a contains check since the contentType may be 'application/json; utf-8' or multi-valued
@@ -209,9 +212,9 @@ try:
                 return zipfile
             else:
                 eprint("Non Zip content type of '" + contentType + "' for url:'" + url + "'")
-        elif response != None and response.status_code != 200:
+        elif response is not None and response.status_code != 200:
             eprint("Non OK response of " + str(response.status_code) + " for URL: " + url)
-            if response.reason != None:
+            if response.reason is not None:
                 eprint("\tReported Reason: '" + response.reason + "'")
         else:
             # Bad url?? bad protocol?
@@ -220,9 +223,9 @@ try:
 
     def gatherSearchClusters():
         if args.zip is None:
-            url = makeBaseUri() + "/searchCluster"
-            objects = doHttpJsonGet(url)
-            if objects:
+            scurl = makeBaseUri() + "/searchCluster"
+            objects = doHttpJsonGet(scurl)
+            if objects is not None:
                 for obj in objects:
                     if 'id' in obj and obj['id'] != "default":
                         searchClusters[obj['id']] = obj
@@ -231,11 +234,10 @@ try:
     def gatherQueryRewrite():
         if args.zip is None:
             sprint("Gathering Query Rewrite Objects")
-            url = makeBaseUri() + "/apps/" + args.app + "/query-rewrite/instances"
-            objects = doHttpJsonGet(url)
-            if objects:
+            qrurl = makeBaseUri() + "/apps/" + args.app + "/query-rewrite/instances"
+            objects = doHttpJsonGet(qrurl)
+            if objects is not None:
                 create = {}
-                create["create"] = objects
                 jsonToFile(create, args.app + "_query_rewrite.json")
 
 
@@ -349,6 +351,9 @@ try:
             , "tasks": collectById
             , "jobs": collectById
             , "sparkJobs": collectById
+            , "templates": collectById
+            , "zones":collectById
+            , "dataModels": collectById
             , "blobs": lambda l_elements, l_type: collectById(l_elements, l_type, "filename")
 
         }
@@ -361,16 +366,20 @@ try:
     def jsonToFile(jData, filename):
         # replace spaces in filename to make the files sed friendly
         filename2 = filename.replace(' ', '_')
-        with open(os.path.join(args.dir, filename2), 'w') as outfile:
-            # sorting keys makes the output source-control friendly.  Do we also want to strip out
-            # timestamp fields?
-            if args.removeVersioning:
-                jData.pop('updates', None)
-                jData.pop('modifiedTime', None)
-                jData.pop('version', None)
 
-            outfile.write(json.dumps(jData, indent=4, sort_keys=True,
-                                     separators=(', ', ': ')))
+        # bail out if the filename starts with any of the SKIP_PREFIX terms
+        keep = shouldKeepFile(filename2)
+        if keep:
+            with open(os.path.join(args.dir, filename2), 'w') as outfile:
+                # sorting keys makes the output source-control friendly.  Do we also want to strip out
+                # timestamp fields?
+                if args.removeVersioning:
+                    jData.pop('updates', None)
+                    jData.pop('modifiedTime', None)
+                    jData.pop('version', None)
+
+                outfile.write(json.dumps(jData, indent=4, sort_keys=True,
+                                         separators=(', ', ': ')))
 
 
     def collectById(elements, type, keyField='id'):
@@ -389,7 +398,13 @@ try:
                         stage["readableScript"] = script.splitlines()
 
             # some jobs have : in the id, some blobs have a path.  Remove problem characters in filename
-            filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
+            if type == 'blobs' and "path" in e:
+                filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
+                path = e["path"]
+                if path is not None:
+                    filename = applySuffix(path[1:].replace('/',"_").replace('\\','_').replace(':','_'),type)
+            else:
+                filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
             jsonToFile(e, filename)
 
 
@@ -410,7 +425,7 @@ try:
                     mylist.extend(v)
         elif isinstance(elements, list):
             mylist = elements
-        if mylist:
+        if mylist is not None:
             collectById(mylist, type)
         elif len(elements) > 1:
             eprint("Green code expects a single ALL element or array of Profiles but found " + len(
@@ -431,6 +446,18 @@ try:
                     collections.append(id)
         collectById(keep, type)
 
+    def shouldKeepFile(filename):
+        '''
+        :param id: collection name
+        :return: True if the collection and configset should be written out
+        '''
+        # Keep everything except what's in the Skip list
+        for cType in SKIP_PREFIX:
+            if filename.startswith(cType):
+                if args.verbose:
+                    sprint(f"Skipping export of {id} file")
+                return False
+        return True
 
     def shouldKeepCollection(id, e):
         '''
@@ -500,7 +527,7 @@ try:
                             action="store_true")  # default=False
         parser.add_argument("--f4",
                             help="Use the /apollo/ section of request urls as required by 4.x.  Default=False.",
-                            default=None, action="store_true")  # default=False
+                            default=False, action="store_true")  # default=False
         parser.add_argument("--keepLang",
                             help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
                             default=False, action="store_true")
@@ -508,6 +535,10 @@ try:
                             help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs"
                             ,
                             default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
+        parser.add_argument("--skipFilePrefix",
+                            help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_"
+                            ,
+                            default="_system,prefs-,_tmp_")
         parser.add_argument("--removeVersioning",
                             help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
                             default=False, action="store_true")
@@ -528,4 +559,7 @@ except ImportError as ie:
           "\ninstall the module via the pip installer\n\nExample:\npip3 install ",
           ie.name, file=sys.stderr)
 except Exception as e:
-    print("Exception: " + e.msg, file=sys.stderr)
+    msg = str(e)
+    if hasattr(e,"msg"):
+        msg = e.msg
+    print("Exception: " + msg, file=sys.stderr)

@@ -24,6 +24,9 @@ try:
     # this still leaves features, objectGroups, links ignored from the the objects.json export
     OBJ_TYPES = {
         "fusionApps": { "ext": "APP"  , "filelist": [] }
+        ,"zones":{"ext":"ZN", "filelist":[],  "api":"templating/zones"}
+        ,"templates":{"ext":"TPL", "filelist":[], "api":"templating/templates"}
+        ,"data-models":{"ext":"DM", "filelist":[]}
         ,"index-pipelines": { "ext": "IPL" , "filelist": [] }
         ,"query-pipelines": { "ext": "QPL" , "filelist": [] }
         ,"index-profiles": { "ext": "IPF" , "filelist": [] }
@@ -135,12 +138,6 @@ try:
                     varReplacements = json.load(jfile);
             else:
                 sys.exit( "Cannot find or access the " + args.varFile + " file.  Process aborted.")
-
-        if args.f4 is None:
-            # enforce default and make type bool
-            args.f4 = False
-        else:
-            args.f4 = True
 
     def initArgsFromMaps(key, default, penv,env):
         if key in penv:
@@ -539,6 +536,24 @@ try:
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
                 doPostByIdThenPut(apiUrl, payload, type,None,idField,None,None,existsChecker)
 
+    def putTemplateFileForType(type, idField=None, existsChecker=None ):
+        if not idField:
+            idField = 'id'
+        base = args.protocol + "://" + args.server + ":" + args.port + "/"
+        apiUrl = base + getApiForType(type)
+        for f in getFileListForType(type):
+            with open(os.path.join(args.dir,f), 'r') as jfile:
+                payload = json.load(jfile)
+                if isSubstitutionType(type):
+                    if args.verbose is not None and isinstance(varReplacements, dict):
+                        sprint("Doing substitution for file " + f)
+                    payload = traverseAndReplace(payload,f, varReplacements)
+                if args.humanReadable:
+                    migrateReadableScript(payload,type)
+
+                #doPostByIdThenPut(apiUrl, payload, type,None, idField)
+                doPostByIdThenPut(apiUrl, payload, type,None,idField,None,None,existsChecker)
+
     def putQueryRewrite():
         rewriteUrl = makeBaseUri() + "/query-rewrite/instances"
         # get a listing of current id's so we can create or update
@@ -574,7 +589,7 @@ try:
         global fusionVersion
         url = makeBaseUri() + "/configurations"
         configurations = doHttpJsonGet(url)
-        if configurations and configurations["app.version"]:
+        if configurations is not None and configurations["app.version"]:
             fusionVersion = configurations["app.version"]
 
     def main():
@@ -592,6 +607,11 @@ try:
             putFileForType('searchCluster',True)
         putCollections()
         putBlobs()
+        if not args.f4:
+            putTemplateFileForType('zones')
+            putTemplateFileForType('templates')
+            putFileForType('data-models')
+
         putFileForType('index-pipelines')
         putFileForType('query-pipelines')
         putFileForType('parsers')
@@ -652,7 +672,7 @@ try:
         parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
         parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False)# default=False
-        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=None,action="store_true")# default=False
+        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=False,action="store_true")# default=False
 
         parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
                                                      "Instead, fail if the collection does not exist.  default: True.",default=True,action="store_true")# default=False
