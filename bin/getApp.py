@@ -86,7 +86,7 @@ try:
 
 
     def debug(msg):
-        if args.debug is not None:
+        if args.debug:
             sprint(msg)
 
 

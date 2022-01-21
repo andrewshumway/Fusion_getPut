@@ -73,8 +73,13 @@ main() {
  # make backup files
  for f in $(ls ${DIR}/*.json); do cp ${f} ${f}${SUFFIX};done
 
+#set -x
+
  # now replace from any tokens set in the replacementTokens.txt file
- while IFS='' read -r line || [[ -n "$line" ]]; do
+ #while IFS='' read -r line || [[ -n "$line" ]]; do
+ IFS=$'\n'
+ for line in $(cat $TOKENFILE |grep -Ev '^#')
+ do
      #extract fields to KEY and Val.
      #echo "get Key and Val from \"$line\""
      KEY=$(echo $line | awk -F "[ \t]*[|][ \t]*" '{print $1}')
@@ -86,11 +91,13 @@ main() {
          echo "Replacing all \"${KEYTOKEN}\" with \"${VAL}\" within $DIR/*.json"
           for DATAFILE in $(ls $DIR/*.json)
           do
-          #echo KEYTOKEN:${KEYTOKEN} VAL:$VAL
-            sed -i "s|${KEYTOKEN}|$VAL|g" ${DATAFILE}
+            #echo KEYTOKEN:${KEYTOKEN} VAL:$VAL
+            # mac and other bsd flavors need to give a backup suffix after -i.  Linux does not
+            # remove the "" if needed
+            sed -i "" "s|${KEYTOKEN}|$VAL|g" ${DATAFILE}
           done
      fi
- done < $TOKENFILE
+ done
 
 }
 
