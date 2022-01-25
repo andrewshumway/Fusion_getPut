@@ -351,10 +351,10 @@ try:
             , "tasks": collectById
             , "jobs": collectById
             , "sparkJobs": collectById
-            , "templates": collectById
-            , "zones":collectById
+            , "templates":  lambda l_elements, l_type: collectById(l_elements, l_type, "id","name")
+            , "zones": lambda l_elements, l_type: collectById(l_elements, l_type, "id","name")
             , "dataModels": collectById
-            , "blobs": lambda l_elements, l_type: collectById(l_elements, l_type, "filename")
+            , "blobs": lambda l_elements, l_type: collectById(l_elements, l_type, "filename","dir")
 
         }
         # get the function matchng the type or a noop
@@ -382,7 +382,7 @@ try:
                                          separators=(', ', ': ')))
 
 
-    def collectById(elements, type, keyField='id'):
+    def collectById(elements, type, keyField='id', nameSpaceField=None):
         for e in elements:
             if keyField not in e and "resource" in e:
                 keyField = "resource"
@@ -398,11 +398,11 @@ try:
                         stage["readableScript"] = script.splitlines()
 
             # some jobs have : in the id, some blobs have a path.  Remove problem characters in filename
-            if type == 'blobs' and "path" in e:
-                filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
-                path = e["path"]
-                if path is not None:
-                    filename = applySuffix(path[1:].replace('/',"_").replace('\\','_').replace(':','_'),type)
+            if nameSpaceField is not None and nameSpaceField in e:
+                ns = e[nameSpaceField]
+                if ns is not None:
+                   ns = re.sub(r"^[/\\:\s]",'',ns)
+                   filename = applySuffix( re.sub(r"[/\\:.\s]",'_',ns) + '_' + id.replace(':', '_').replace('/', '_'),type)
             else:
                 filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
             jsonToFile(e, filename)

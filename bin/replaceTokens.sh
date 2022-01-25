@@ -102,3 +102,9 @@ main() {
 }
 
 main ${@%/}
+
+#
+# to rename files (needed if id of collection or blob is changed) try something like the following within both blobs and configsets subdirectories
+#
+# find . -type d -depth 1 -name '*${foundry.FEATURE_NAME}*' -exec rename -vn -s '${foundry.FEATURE_NAME}' typeAhead {} \;
+#
