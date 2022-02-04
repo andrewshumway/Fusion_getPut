@@ -362,10 +362,18 @@ try:
                 eprint("Non OK response of " + str(response.status_code) + " when POSTing: " + f)
 
 
+    def sortCollection(e):
+        # put signals and signals aggr collections first
+        # Perhaps all auto-created collections should be listed here
+        if re.search("_signals_|_rewrite_",e):
+            e = "1_" + e
+        return e
+
     def putCollections():
 
         apiUrl = makeBaseUri() + "/collections"
-        for f in getFileListForType("collections"):
+        sortedFiles = sorted(getFileListForType("collections"),key=sortCollection)
+        for f in sortedFiles:
             with open(os.path.join(args.dir,f), 'r') as jfile:
                 payload = json.load(jfile);
                 # pop off name for collections pointing at "default".  That way the local collections get created in Solr.
