@@ -10,13 +10,14 @@ This  can be download or cloned onto a customer's machine but using it locally i
 
 ## Recent changes
 * Prior to v1.3, these scripts used Python version 2.7. From tag v1.3 onward, Python 3 is needed (developed against 3.9+).
-* In v1.3 (and until the bugs were fixed just after v1.3 was released) the --f5 option preferenced Fusion 4 i.e. False.  Some attempts were made to change this default to True but resulted in essoteric bugs.  To reflect the reality that Fusion 5.x is the more current standard, --f5 has been replaced with --f4 which defaults to False.  Setting --f4 will make the scripts Fusion 4 compatible.
+* In v1.3 (and until the bugs were fixed just after v1.3 was released) the --f5 option preferenced Fusion 4 i.e. False.  Some attempts were made to change this default to True but resulted in essoteric bugs.  To reflect the reality that Fusion 5.x is the more current standard, --f5 has been replaced with `--f4` which defaults to False.  Setting `--f4` will make the scripts Fusion 4 compatible.
 * Support added for Fusion 5 Predictive merchandizer objects templates, zones, and dataModels
+* Legacy Fusion (circa 4.2.1), allowed an update to an object (HTTP PUT) which was not currently part of the app specified in the Request URL (defined by the *APP.json file).  This transaction would also add the object to the APP.  Fusion changed and now (F4.2.6) rejects the object for both POST (already exists) and PUT (not in app).  The `--linkAndWriteShared` param now makes this work as per 4.2.1
 
 ##  Import or Export Fusion Apps
 
 Use `getApp.sh` to export a Fusion App and store it as files in an output directory.
-```bash
+```markdown
 $ getApp.sh --help
 
 usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-z ZIP] [-u USER]
@@ -56,14 +57,12 @@ optional arguments:
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
 
-```bash
-$ putApp.sh --help
-
+```markdown
 usage: putApp.py [-h] -d DIR [--protocol PROTOCOL] [-s SVR] [--port PORT]
                  [-u USER] [--password PASSWORD] [--ignoreExternal] [-v]
                  [--humanReadable] [--varFile VARFILE] [--makeAppCollections]
-                 [--doRewrite DOREWRITE] [--f4] [--keepCollAlias] [--debug]
-                 [--noVerify]
+                 [--doRewrite DOREWRITE] [--f4] [--keepCollAlias]
+                 [--linkAndWriteShared] [--debug] [--noVerify]
 
 ______________________________________________________________________________
 Take a folder containing .json files (produced by getApp.py) and POST the contents 
@@ -91,9 +90,10 @@ optional arguments:
                         Import query rewrite objects (if any), default: False.
   --f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
   --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
+  --linkAndWriteShared  In F5, shared Objects not part of the target App fail to update.  This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
- 
+
 ```
 
  

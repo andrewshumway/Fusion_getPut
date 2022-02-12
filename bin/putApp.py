@@ -2,7 +2,6 @@
 """
 Use at your own risk.  No compatibility or maintenance or other assurance of suitability is expressed or implied.
 Update or modify as needed
-Copyright Polaris Alpha i.e. Parsons Corp.  All rights reserved
 """
 
 #
@@ -24,24 +23,24 @@ try:
     # this still leaves features, objectGroups, links ignored from the the objects.json export
     OBJ_TYPES = {
         "fusionApps": { "ext": "APP"  , "filelist": [] }
-        ,"zones":{"ext":"ZN", "filelist":[],  "api":"templating/zones"}
-        ,"templates":{"ext":"TPL", "filelist":[], "api":"templating/templates"}
+        ,"zones":{"ext":"ZN", "filelist":[],  "api":"templating/zones","linkType":"zone"}
+        ,"templates":{"ext":"TPL", "filelist":[], "api":"templating/templates","linkType":"template"}
         ,"data-models":{"ext":"DM", "filelist":[]}
-        ,"index-pipelines": { "ext": "IPL" , "filelist": [] }
-        ,"query-pipelines": { "ext": "QPL" , "filelist": [] }
-        ,"index-profiles": { "ext": "IPF" , "filelist": [] }
-        ,"query-profiles": { "ext": "QPF" , "filelist": [] }
-        ,"parsers": { "ext": "PS" , "filelist": [] }
-        ,"datasources": { "ext": "DS" , "api": "connectors/datasources","filelist": [], "substitute": True}
-        ,"collections": { "ext": "COL" , "filelist": [] }
+        ,"index-pipelines": { "ext": "IPL" , "filelist": [],"linkType": "index-pipeline" }
+        ,"query-pipelines": { "ext": "QPL" , "filelist": [] ,"linkType": "query-pipeline" }
+        ,"index-profiles": { "ext": "IPF" , "filelist": [],"linkType": "index-profile" }
+        ,"query-profiles": { "ext": "QPF" , "filelist": [],"linkType": "query_profile" }
+        ,"parsers": { "ext": "PS" , "filelist": [],"linkType": "parser" }
+        ,"datasources": { "ext": "DS" , "api": "connectors/datasources","filelist": [], "substitute": True,"linkType": "datasource"}
+        ,"collections": { "ext": "COL" , "filelist": [] ,"linkType": "collection"}
         ,"jobs": { "ext": "JOB" , "filelist": [] }
-        ,"tasks": { "ext": 'TSK' , "filelist": [] }
+        ,"tasks": { "ext": 'TSK' , "filelist": [],"linkType": "task" }
         ,"spark/jobs": { "ext": 'SPRK' , "filelist": [] , "versionedApi" : {
             "4.0.1": "spark/jobs"
             ,"4.0.2": "spark/configurations"
             ,"default": "spark/configurations"
-        }}
-        ,"blobs": { "ext": "BLOB" , "filelist": [] }
+        },"linkType": "spark"}
+        ,"blobs": { "ext": "BLOB" , "filelist": [] ,"linkType": "blob"}
         ,"searchCluster": { "ext": "SC" , "filelist": [] }
 
     }
@@ -249,7 +248,15 @@ try:
             if putParams:
                 url += "?" + putParams
 
+            # if we got here then we tried posting but that didn't work so now we will try a PUT
             response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+            # if the PUT says the object exists, then the the likely problem is that  the object isn't linked to the current app
+            # check and see if the response complains of the "id not in app" and add a link if needed.
+            if args.linkAndWriteShared and f"{id} not in app" in response.text:
+                lresponse = makeLink(type,id)
+                if lresponse.status_code >= 200 and lresponse.status_code <= 250:
+                    #try update again after link is in place
+                    response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
 
         if response.status_code >= 200 and response.status_code <= 250:
             sprint( "Element " + type + " id: " + id + " PUT/POSTed successfully")
@@ -302,17 +309,29 @@ try:
                 if args.verbose:
                     sprint("Uploaded " + path + " payload successfully")
                 # makeBaseUri(True) is used for Fusion 4.0.1 compatibility but this requires us to make the link
-                lurl = makeBaseUri(True) + "/links"
-                # {"subject":"blob:lucid.googledrive-4.0.1.zip","object":"app:EnterpriseSearch","linkType":"inContextOf"}
-                payload = {"subject":"","object":"","linkType":"inContextOf"}
-                payload['subject'] = 'blob:' + blobId
-                payload['object'] = 'app:' + appName
-                lresponse = requests.put(lurl, auth=requests.auth.HTTPBasicAuth(args.user, args.password),headers={"Content-Type": "application/json"}, data=json.dumps(payload),verify=isVerify())
-                if lresponse and lresponse.status_code < 200 or lresponse.status_code > 250:
-                    eprint("Non OK response: " + str(lresponse.status_code) + " when linking Blob " + blobId + " to App " + appName)
+                makeLink("blobs",blobId)
 
             elif response is not None and response.status_code:
                 eprint("Non OK response: " + str(response.status_code) + " when processing " + f)
+
+    def makeLink(resourcetype, id):
+        type = None
+        if resourcetype in OBJ_TYPES:
+          type = OBJ_TYPES[resourcetype]['linkType']
+        else:
+          type = resourcetype
+
+        lurl = makeBaseUri(True) + "/links"
+        # {"subject":"blob:lucid.googledrive-4.0.1.zip","object":"app:EnterpriseSearch","linkType":"inContextOf"}
+        payload = {"subject":"","object":"","linkType":"inContextOf"}
+        payload['subject'] = f"{type}:{id}"
+        payload['object'] = f'app:{appName}'
+        lresponse = requests.put(lurl, auth=requests.auth.HTTPBasicAuth(args.user, args.password),headers={"Content-Type": "application/json"}, data=json.dumps(payload),verify=isVerify())
+        if lresponse and lresponse.status_code < 200 or lresponse.status_code > 250:
+            eprint("Non OK response: {}   when linking object {} to App {}".format(str(lresponse.status_code),payload['subject'],appName))
+
+        return lresponse
+
 
     def putApps():
         global appName
@@ -685,6 +704,9 @@ try:
         parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
                                                      "Instead, fail if the collection does not exist.  default: True.",default=True,action="store_true")# default=False
 
+        parser.add_argument("--linkAndWriteShared",
+                            help="In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False",
+                            default=False, action="store_true")
         parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
 

@@ -3,7 +3,6 @@
 """
 Use at your own risk.  No compatibility or maintenance or other assurance of suitability is expressed or implied.
 Update or modify as needed
-Copyright Polaris Alpha i.e. Parsons Corp.  All rights reserved
 """
 
 # 4.x notes. Trying new approach.  Fetch zip and unpack various object elements.
@@ -532,12 +531,10 @@ try:
                             help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
                             default=False, action="store_true")
         parser.add_argument("--skipCollections",
-                            help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs"
-                            ,
+                            help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs",
                             default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
         parser.add_argument("--skipFilePrefix",
-                            help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_"
-                            ,
+                            help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_",
                             default="_system,prefs-,_tmp_")
         parser.add_argument("--removeVersioning",
                             help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
