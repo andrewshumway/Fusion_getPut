@@ -225,7 +225,7 @@ try:
             eprint(e)
 
     #  POST the given payload to apiUrl.  If it already exists then tack on the id to the URL and try a PUT
-    def doPostByIdThenPut(apiUrl, payload, type, putParams='?_cookie=false', idField='id', usr=None, pswd=None, existsChecker=None):
+    def doPostByIdThenPut(apiUrl, payload, type, putParams='?_cookie=false', postParams='?_cookie=false',idField='id', usr=None, pswd=None, existsChecker=None):
         if existsChecker == None:
             existsChecker = lambda response,payload: response.status_code == 409
 
@@ -238,14 +238,16 @@ try:
         headers = {}
         headers['Content-Type'] = "application/json"
         url = apiUrl
-
+        if postParams is not None:
+            url += "?" + postParams
         response = requests.post(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+        url = apiUrl
         if existsChecker(response,payload):
             if args.verbose:
                 sprint("The " + type + " definition for '" + id + "' exists.  Attempting PUT.")
 
             url = apiUrl + "/" + id
-            if putParams:
+            if putParams is not None:
                 url += "?" + putParams
 
             # if we got here then we tried posting but that didn't work so now we will try a PUT
@@ -392,6 +394,7 @@ try:
 
         apiUrl = makeBaseUri() + "/collections"
         sortedFiles = sorted(getFileListForType("collections"),key=sortCollection)
+        params = "_cookie=false"
         for f in sortedFiles:
             with open(os.path.join(args.dir,f), 'r') as jfile:
                 payload = json.load(jfile);
@@ -404,13 +407,15 @@ try:
                 if payload["solrParams"] and payload['id'] != payload['solrParams']['name'] and args.keepCollAlias:
                     doPop = False
                     debug("Not creating Solr collection named " + payload['solrParams']['name'] )
+                if payload["type"] is not None and payload["type"] == "DATA":
+                    params += "&defaultFeatures=false"
 
                 if doPop:
                     payload["solrParams"].pop('name', None)
                 # if args.ignoreExternal then don't process any collections in an external cluster
                 if not args.ignoreExternal or payload["searchClusterId"] == "default":
                     # to skip sub collections add defaultFeatures=false
-                    response = doPostByIdThenPut(apiUrl, payload, 'Collection','relatedObjects=false&_cookie=false')
+                    response = doPostByIdThenPut(apiUrl, payload, 'Collection', putParams=params,postParams=params)
                     if response.status_code == 200:
                         putSchema(payload['id'])
 
@@ -561,7 +566,7 @@ try:
                     migrateReadableScript(payload,type)
 
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
-                doPostByIdThenPut(apiUrl, payload, type,None,idField,None,None,existsChecker)
+                doPostByIdThenPut(apiUrl, payload, type,None,None,idField,None,None,existsChecker)
 
     def putTemplateFileForType(type, idField=None, existsChecker=None ):
         if not idField:
@@ -579,7 +584,7 @@ try:
                     migrateReadableScript(payload,type)
 
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
-                doPostByIdThenPut(apiUrl, payload, type,None,idField,None,None,existsChecker)
+                doPostByIdThenPut(apiUrl, payload, type,None,None,idField,None,None,existsChecker)
 
     def putQueryRewrite():
         rewriteUrl = makeBaseUri() + "/query-rewrite/instances"
