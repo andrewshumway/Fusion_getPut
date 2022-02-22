@@ -629,6 +629,7 @@ try:
         fetchFusionVersion()
         # fetch collections first
         sprint("Uploading objects found under '" + args.dir + "' to Fusion version " + fusionVersion)
+        sprint(f'Upload target API: {makeBaseUri()}')
 
         findFiles()
         # putApps must be the first export, clusters next.  blobs and collections in either order then pipelines
