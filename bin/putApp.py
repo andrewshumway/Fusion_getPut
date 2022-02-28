@@ -645,9 +645,9 @@ try:
             putTemplateFileForType('templates')
             putFileForType('data-models')
 
+        putFileForType('parsers')
         putFileForType('index-pipelines')
         putFileForType('query-pipelines')
-        putFileForType('parsers')
         putFileForType('index-profiles')
         putFileForType('query-profiles')
 
