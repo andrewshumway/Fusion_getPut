@@ -18,51 +18,54 @@ This  can be download or cloned onto a customer's machine but using it locally i
 
 Use `getApp.sh` to export a Fusion App and store it as files in an output directory.
 ```markdown
-$ getApp.sh --help
-
 usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-z ZIP] [-u USER]
-                 [--password PASSWORD] [--protocol PROTOCOL] [--port PORT]
-                 [-v] [--f4] [--keepLang] [--skipCollections SKIPCOLLECTIONS]
-                 [--removeVersioning] [--debug] [--noVerify] [--humanReadable]
+[--password PASSWORD] [--protocol PROTOCOL] [--port PORT]
+[-v] [--f4] [--keepLang] [--skipCollections SKIPCOLLECTIONS]
+[--skipFilePrefix SKIPFILEPREFIX] [--removeVersioning]
+[--collectCFeatures] [--debug] [--noVerify] [--humanReadable]
 
 ______________________________________________________________________________
-Get artifacts associated with a Fusion app and store them together in a folder 
-as flat files, .json, and .zip files. These can later be pushed back into the same, 
-or different, Fusion instance as needed. NOTE: if launching from getApp.sh, 
+Get artifacts associated with a Fusion app and store them together in a folder
+as flat files, .json, and .zip files. These can later be pushed back into the same,
+or different, Fusion instance as needed. NOTE: if launching from getApp.sh,
 defaults will be pulled from the bash environment plus values from bin/lw.env.sh
 ______________________________________________________________________________
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -a APP, --app APP     App to export
-  -d DIR, --dir DIR     Output directory, default: '${app}_ccyymmddhhmm'.
-  -s SVR, --server SVR  Name or IP of server to fetch data from, 
-                        default: ${lw_IN_SERVER} or 'localhost'.
-  -z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server, 
-                        default: None.
-  -u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
-  --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
-  --protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
-  --port PORT           Fusion Port, default: ${lw_PORT} or 6764
-  -v, --verbose         Print details, default: False.
-  --f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
-  --keepLang            Keep the language directory and files of configsets.  This is removed by default for brevity.
-  --skipCollections SKIPCOLLECTIONS
-                        Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
-  --removeVersioning    Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false
-  --debug               Print debug messages while running, default: False.
-  --noVerify            Do not verify SSL certificates if using https, default: False.
-  --humanReadable       copy JS scripts to a human readable format, default: False.
+-h, --help            show this help message and exit
+-a APP, --app APP     App to export
+-d DIR, --dir DIR     Output directory, default: '${app}_ccyymmddhhmm'.
+-s SVR, --server SVR  Name or IP of server to fetch data from,
+default: ${lw_IN_SERVER} or 'localhost'.
+-z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server,
+default: None.
+-u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
+--password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
+--protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
+--port PORT           Fusion Port, default: ${lw_PORT} or 6764
+-v, --verbose         Print details, default: False.
+--f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
+--keepLang            Keep the language directory and files of configsets.  This is removed by default for brevity.
+--skipCollections SKIPCOLLECTIONS
+Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
+--skipFilePrefix SKIPFILEPREFIX
+Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_
+--removeVersioning    Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false
+--collectCFeatures    Export the Collection Features.  default=false
+--debug               Print debug messages while running, default: False.
+--noVerify            Do not verify SSL certificates if using https, default: False.
+--humanReadable       copy JS scripts to a human readable format, default: False.
 
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
 
 ```markdown
-usage: putApp.py [-h] -d DIR [--protocol PROTOCOL] [-s SVR] [--port PORT]
-                 [-u USER] [--password PASSWORD] [--ignoreExternal] [-v]
-                 [--humanReadable] [--varFile VARFILE] [--makeAppCollections]
-                 [--doRewrite DOREWRITE] [--f4] [--keepCollAlias]
-                 [--linkAndWriteShared] [--debug] [--noVerify]
+usage: putApp.py [-h] -d DIR [--failOnStdError] [--protocol PROTOCOL] [-s SVR]
+                 [--port PORT] [-u USER] [--password PASSWORD]
+                 [--ignoreExternal] [-v] [--humanReadable] [--varFile VARFILE]
+                 [--makeAppCollections] [--doRewrite DOREWRITE] [--f4]
+                 [--keepCollAlias] [--linkAndWriteShared] [--debug]
+                 [--noVerify]
 
 ______________________________________________________________________________
 Take a folder containing .json files (produced by getApp.py) and POST the contents 
@@ -75,9 +78,9 @@ ______________________________________________________________________________
 optional arguments:
   -h, --help            show this help message and exit
   -d DIR, --dir DIR     Input directory, required.
+  --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
   --protocol PROTOCOL   Protocol,  Default: ${lw_PROTOCOL} or 'http'.
-  -s SVR, --server SVR  Fusion server to send data to. 
-                        Default: ${lw_OUT_SERVER} or 'localhost'.
+  -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
   --port PORT           Port, Default: ${lw_PORT} or 6764
   -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
   --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
@@ -90,7 +93,7 @@ optional arguments:
                         Import query rewrite objects (if any), default: False.
   --f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
   --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
-  --linkAndWriteShared  In F5, shared Objects not part of the target App fail to update.  This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False
+  --linkAndWriteShared  In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
 

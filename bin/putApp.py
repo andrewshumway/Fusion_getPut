@@ -42,6 +42,7 @@ try:
         },"linkType": "spark"}
         ,"blobs": { "ext": "BLOB" , "filelist": [] ,"linkType": "blob"}
         ,"searchCluster": { "ext": "SC" , "filelist": [] }
+        ,"features": { "ext": "CF" , "filelist": [] }
 
     }
 
@@ -347,11 +348,8 @@ try:
                 payload = json.load(jfile);
                 appName = payload['id']
 
-        elif len(appFiles) == 1 :
-            eprint("No " + getSuffix("fusionApps") + " files found in " + args.dir + ".  Imported objects will not be linked to an App!")
-            return
-        elif len(appFiles)> 0:
-            sys.exit("Multiple " + getSuffix("fusionApps") + " files found in " + args.dir + ". Maximum of one is allowed.")
+        else:
+            sys.exit("Exactly one file with name ending in " + getSuffix("fusionApps") + " in directory " + args.dir + " is required! Exiting.")
 
 
         # GET from /api/apollo/apps/NAME to check for existence
@@ -378,9 +376,13 @@ try:
                 if args.verbose:
                     sprint( "Created App " + appName)
             elif response.status_code != 200:
+                if hasattr(response,"reason"):
+                    reason = response.reason
+                else:
+                    reason = "Unknown"
                 if args.verbose:
                     print("...Failure.")
-                eprint("Non OK response of " + str(response.status_code) + " when POSTing: " + f)
+                    sys.exit(f'"Non OK response of "{response.status_code}" when POSTing app: "{f}" \nReason: "{reason}"\nAborting...')
 
 
     def sortCollection(e):
@@ -389,6 +391,66 @@ try:
         if re.search("_signals_|_rewrite_",e):
             e = "1_" + e
         return e
+
+    # GET the feature from the target and see if it's identical to what's queued for upload
+    def isDuplicateFeature(url, feature,usr=None,pswd=None):
+        usr = getDefOrVal(usr,args.user)
+        pswd = getDefOrVal(pswd,args.password)
+        headers = {"Content-Type": "application/json"}
+        try:
+            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd), headers=headers, verify=isVerify())
+            response.raise_for_status()
+            currentFeature = json.loads(response.content)
+            if args.debug:
+                sprint(f"feature duplicate check = {currentFeature == feature}")
+            return currentFeature == feature
+
+        except Exception as ex:
+            pass
+
+        return False
+
+    def putFeatures():
+        apiUrl = makeBaseUri() + "/collections"
+        files = getFileListing(os.path.join(args.dir,"features"))
+        colfiles_o = getFileListForType("collections")
+        colfiles = []
+        for c in colfiles_o:
+            colfiles.append(c.split('_COL.json')[0])
+
+        params = "_cookie=false"
+        for f in files:
+            # only process features that have a matching collection upload in the file list
+            if f.endswith(f'{getSuffix("features")}') and f.split(getSuffix("features"))[0] in colfiles:
+
+                with open(os.path.join(args.dir,"features",f), 'r') as jfile:
+                    payload = json.load(jfile)
+                    for feature in payload:
+                        name = feature["name"]
+                        col = feature["collectionId"]
+                        url = f'{apiUrl}/{col}/features/{name}'
+                        if isDuplicateFeature(url,feature):
+                            continue
+                        try:
+                            response = doHttpJsonPut(url, feature)
+                            response.raise_for_status()
+                            if args.verbose:
+                                sprint(f'\tSuccessfully uploaded "{name} feature for collection "{col}"')
+
+                        except Exception as ex:
+                            # some exceptions are ok because Fusion sends a 500 error if it can't delete non-existing collections
+                            ex_text = ""
+                            if hasattr(ex,'text'):
+                                ex_text = ex["text"]
+                            elif hasattr(ex,'response') and hasattr(ex.response,"text"):
+                                ex_text = ex.response.text
+
+                            search = re.search("Unable to (create|delete) (.*) collection",ex_text)
+
+                            if search:
+                              sprint(f'WARNING: dependent collection not deleted/created when feature "{name}" uploaded for collection "{col}"')
+                            else:
+                              eprint(f'Error putting "{name}" feature for collection "{col}". msg:\n\t{ex_text}')
 
     def putCollections():
 
@@ -417,6 +479,9 @@ try:
                     # to skip sub collections add defaultFeatures=false
                     response = doPostByIdThenPut(apiUrl, payload, 'Collection', putParams=params,postParams=params)
                     if response.status_code == 200:
+                        if args.verbose:
+                            sprint(f'Successfully uploaded collection definition for {payload["id"]}')
+
                         putSchema(payload['id'])
 
     #
@@ -486,7 +551,7 @@ try:
             #if the file is part of the current configset and is avaliable for upload, upload it.
             if os.path.isfile(os.path.join(dir,file)):
                 isLast = len(files) == counter
-            # see if the file exists and PUT or POST accordingly
+                # see if the file exists and PUT or POST accordingly
                 url = schemaUrl + '/' + file.replace(os.sep,'/')
                 if isLast:
                     url += '?reload=true'
@@ -504,6 +569,8 @@ try:
 
     def eprint(*args, **kwargs):
         print(*args, file=sys.stderr, **kwargs)
+        if args.failOnStdError:
+            sys.exit("Startup argument --failOnStdErr set, exiting putApp")
 
     def sprint(msg):
         # change inputs to *args, **kwargs in python 3
@@ -522,6 +589,7 @@ try:
         for f in files:
             inferType = inferTypeFromFile(f)
             if inferType:
+                # grab the global filelist array for this type and stuff in the filename
                 flist = getFileListForType(inferType)
                 if isinstance( flist, (list )):
                     flist.append(f)
@@ -639,11 +707,8 @@ try:
         if not args.ignoreExternal:
             putFileForType('searchCluster',True)
         putCollections()
+        putFeatures()
         putBlobs()
-        if not args.f4:
-            putTemplateFileForType('zones')
-            putTemplateFileForType('templates')
-            putFileForType('data-models')
 
         putFileForType('parsers')
         putFileForType('index-pipelines')
@@ -657,7 +722,10 @@ try:
         putFileForType("datasources",None,None,lambda r,p: datasourceChecker(r,p))
         putJobSchedules()
         putQueryRewrite()
-
+        if not args.f4:
+            putTemplateFileForType('zones')
+            putTemplateFileForType('templates')
+            putFileForType('data-models')
 
     def sparkChecker(response,payload):
         exists = False
@@ -693,8 +761,9 @@ try:
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
         parser.add_argument("-d","--dir", help="Input directory, required.", required=True)#,default="default"
+        parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
         parser.add_argument("--protocol", help="Protocol,  Default: ${lw_PROTOCOL} or 'http'.")
-        parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. \nDefault: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
+        parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
         parser.add_argument("--port", help="Port, Default: ${lw_PORT} or 6764") #,default="8764"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
@@ -725,5 +794,7 @@ except ImportError as ie:
           ie.name,
           "\ninstall the module via the pip installer\n\nExample:\npip3 install ",
           ie.name, file=sys.stderr)
+    sys.exit(1)
 except Exception as e:
     print("Exception: " + e.msg, file=sys.stderr)
+    sys.exit("1")

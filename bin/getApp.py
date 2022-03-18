@@ -63,6 +63,8 @@ try:
         , "templates": "TPL"
         , "zones": "ZN"
         , "dataModels": "DM"
+        # collection feature is odd in that we store an array in the file but POST individual elements
+        , "features": "CF"
     }
 
     # default is to skip "_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"
@@ -296,7 +298,7 @@ try:
         file = extension[0]
         ext = extension[-1]
         if path[0] == 'blobs':
-            return True
+            return not file.startswith("prefs-")
         # in 4.0.2 configsets are already unzip so each file can be extracted.  this block should catch 4.0.2 case
         # and shouldExtractConfig will catch the 4.0.1 case
         elif len(path) > 2 and path[0] == 'configsets' and ext != '.zip' and path[1] in collections:
@@ -341,6 +343,7 @@ try:
         switcher = {
             "fusionApps": collectById
             , "collections": lambda l_elements, l_type: collectCollections(l_elements, l_type)
+            , "features": lambda l_elements, l_type: collectFeatures(l_elements, l_type)
             , "indexPipelines": collectById
             , "queryPipelines": collectById
             , "indexProfiles": collectProfileById
@@ -386,6 +389,8 @@ try:
             if keyField not in e and "resource" in e:
                 keyField = "resource"
             id = e[keyField]
+            if type == "blobs" and id.startswith("prefs-"):
+                continue
             if args.verbose:
                 sprint("Processing '" + type + "' object: " + id)
             # spin thru e and look for 'stages' with 'script'
@@ -430,6 +435,15 @@ try:
             eprint("Green code expects a single ALL element or array of Profiles but found " + len(
                 elements) + " code needs attention")
 
+    def collectFeatures(elements,type="features"):
+        if args.collectCFeatures:
+            outdir = os.path.join(args.dir,"features")
+            if not os.path.isdir(outdir):
+                os.makedirs(outdir)
+            for col in elements:
+                features = elements[col]
+                filename = os.path.join("features",applySuffix(col.replace(':', '_').replace('/', '_'), type))
+                jsonToFile(features,filename)
 
     def collectCollections(elements, type="collections"):
         keep = []
@@ -539,6 +553,7 @@ try:
         parser.add_argument("--removeVersioning",
                             help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
                             default=False, action="store_true")
+        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=false", default=False, action="store_true")
         parser.add_argument("--debug", help="Print debug messages while running, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--noVerify", help="Do not verify SSL certificates if using https, default: False.",
