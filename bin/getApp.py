@@ -376,9 +376,12 @@ try:
                 # sorting keys makes the output source-control friendly.  Do we also want to strip out
                 # timestamp fields?
                 if args.removeVersioning:
-                    jData.pop('updates', None)
-                    jData.pop('modifiedTime', None)
-                    jData.pop('version', None)
+                    if hasattr(jData,"updates"):
+                        jData.pop('updates', None)
+                    if hasattr(jData,"modifiedTime"):
+                        jData.pop('modifiedTime', None)
+                    if hasattr(jData,"version"):
+                        jData.pop('version', None)
 
                 outfile.write(json.dumps(jData, indent=4, sort_keys=True,
                                          separators=(', ', ': ')))
