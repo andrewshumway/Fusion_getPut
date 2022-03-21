@@ -430,12 +430,13 @@ try:
                         col = feature["collectionId"]
                         url = f'{apiUrl}/{col}/features/{name}'
                         if isDuplicateFeature(url,feature):
+                            if args.verbose:
+                                sprint(f'Skipping "{name}" feature for collection "{col}" because it is unchanged.')
                             continue
                         try:
                             response = doHttpJsonPut(url, feature)
                             response.raise_for_status()
-                            if args.verbose:
-                                sprint(f'\tSuccessfully uploaded "{name} feature for collection "{col}"')
+                            sprint(f'\tSuccessfully uploaded "{name} feature for collection "{col}"')
 
                         except Exception as ex:
                             # some exceptions are ok because Fusion sends a 500 error if it can't delete non-existing collections
@@ -761,7 +762,7 @@ try:
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
         parser.add_argument("-d","--dir", help="Input directory, required.", required=True)#,default="default"
-        parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
+        parser.add_argument("----collectCFeatures",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
         parser.add_argument("--protocol", help="Protocol,  Default: ${lw_PROTOCOL} or 'http'.")
         parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
         parser.add_argument("--port", help="Port, Default: ${lw_PORT} or 6764") #,default="8764"
