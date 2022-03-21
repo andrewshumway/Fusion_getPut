@@ -436,7 +436,7 @@ try:
                         try:
                             response = doHttpJsonPut(url, feature)
                             response.raise_for_status()
-                            sprint(f'\tSuccessfully uploaded "{name} feature for collection "{col}"')
+                            sprint(f'Successfully uploaded "{name}" feature for collection "{col}"')
 
                         except Exception as ex:
                             # some exceptions are ok because Fusion sends a 500 error if it can't delete non-existing collections
