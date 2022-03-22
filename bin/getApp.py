@@ -524,45 +524,46 @@ try:
 
         # parser.add_argument_group('bla bla bla instruction go here and they are really long \t and \n have tabs and\n newlines')
         parser.add_argument("-a", "--app", help="App to export")  # ,default="lwes_"
+        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=false", default=False, action="store_true")
+
         parser.add_argument("-d", "--dir",
                             help="Output directory, default: '${app}_ccyymmddhhmm'.")  # ,default="default"
-        parser.add_argument("-s", "--server", metavar="SVR",
-                            help="Name or IP of server to fetch data from, \ndefault: ${lw_IN_SERVER} or 'localhost'.")  # default="localhost"
+        parser.add_argument("--humanReadable", help="copy JS scripts to a human readable format, default: False.",
+                            default=False, action="store_true")  # default=False
+        parser.add_argument("--keepLang",
+                        help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
+                        default=False, action="store_true")
+        parser.add_argument("--skipCollections",
+                        help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs",
+                        default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
+        parser.add_argument("--skipFilePrefix",
+                        help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_",
+                        default="_system,prefs-,_tmp_")
+        parser.add_argument("--removeVersioning",
+                        help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
+                        default=False, action="store_true")
 
-        parser.add_argument("-z", "--zip",
-                            help="Path and name of the Zip file to read from rather than using an export from --server, \ndefault: None.",
-                            default=None)
-
-        parser.add_argument("-u", "--user",
-                            help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
-        parser.add_argument("--password",
-                            help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
         parser.add_argument("--protocol", help="REST Protocol,  default: ${lw_PROTOCOL} or 'http'.")
         parser.add_argument("--port", help="Fusion Port, default: ${lw_PORT} or 6764")  # ,default="8764"
+        parser.add_argument("-s", "--server", metavar="SVR",
+                            help="Name or IP of server to fetch data from, \ndefault: ${lw_IN_SERVER} or 'localhost'.")  # default="localhost"
+        parser.add_argument("-u", "--user",
+                        help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
+        parser.add_argument("--password",
+                        help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--f4",
                             help="Use the /apollo/ section of request urls as required by 4.x.  Default=False.",
                             default=False, action="store_true")  # default=False
-        parser.add_argument("--keepLang",
-                            help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
-                            default=False, action="store_true")
-        parser.add_argument("--skipCollections",
-                            help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs",
-                            default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
-        parser.add_argument("--skipFilePrefix",
-                            help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_",
-                            default="_system,prefs-,_tmp_")
-        parser.add_argument("--removeVersioning",
-                            help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
-                            default=False, action="store_true")
-        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=false", default=False, action="store_true")
         parser.add_argument("--debug", help="Print debug messages while running, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--noVerify", help="Do not verify SSL certificates if using https, default: False.",
                             default=False, action="store_true")  # default=False
-        parser.add_argument("--humanReadable", help="copy JS scripts to a human readable format, default: False.",
-                            default=False, action="store_true")  # default=False
+
+        parser.add_argument("-z", "--zip",
+                            help="Path and name of the Zip file to read from rather than using an export from --server, \ndefault: None.",
+                            default=None)
 
         # print("args: " + str(sys.argv))
         args = parser.parse_args()
