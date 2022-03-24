@@ -255,7 +255,9 @@ try:
             response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
             # if the PUT says the object exists, then the the likely problem is that  the object isn't linked to the current app
             # check and see if the response complains of the "id not in app" and add a link if needed.
-            if args.linkAndWriteShared and f"{id} not in app" in response.text:
+            if args.linkAndWriteShared and \
+                    (f"{id} not in app" in response.text
+                     or f"The Task with id '{id}' does not exist" in response.text):
                 lresponse = makeLink(type,id)
                 if lresponse.status_code >= 200 and lresponse.status_code <= 250:
                     #try update again after link is in place
@@ -708,7 +710,8 @@ try:
         if not args.ignoreExternal:
             putFileForType('searchCluster',True)
         putCollections()
-        putFeatures()
+        if not args.skipCFeatures:
+            putFeatures()
         putBlobs()
 
         putFileForType('parsers')
@@ -762,6 +765,8 @@ try:
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
         parser.add_argument("-d","--dir", help="Input directory, required.", required=True)#,default="default"
+        parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False,action="store_true")# default=False
+        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=False,action="store_true")# default=False
         parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
         parser.add_argument("--protocol", help="Protocol,  Default: ${lw_PROTOCOL} or 'http'.")
         parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
@@ -769,22 +774,22 @@ try:
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
         parser.add_argument("--ignoreExternal", help="Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False",default=False,action="store_true")
-        parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
-        parser.add_argument("--humanReadable",help="This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.",default=False,action="store_true")# default=False
-
-        parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
-        parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
-        parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False)# default=False
-        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=False,action="store_true")# default=False
-
         parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
-                                                     "Instead, fail if the collection does not exist.  default: True.",default=True,action="store_true")# default=False
+                                           "Instead, fail if the collection does not exist.  default: True.",default=False,action="store_true")# default=False
 
+        parser.add_argument("--humanReadable",help="This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--linkAndWriteShared",
                             help="In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False",
                             default=False, action="store_true")
+        parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
+        parser.add_argument("--skipCFeatures",help="Skip loadeing of Collection Features files (usually only needed when collections are created), default: False. "
+                                                   ,default=False,action="store_true")# default=False
+
+
         parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
+        parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
+        parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
 
 
         args = parser.parse_args()

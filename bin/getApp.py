@@ -231,14 +231,16 @@ try:
                     if 'id' in obj and obj['id'] != "default":
                         searchClusters[obj['id']] = obj
 
-
     def gatherQueryRewrite():
+
         if args.zip is None:
             sprint("Gathering Query Rewrite Objects")
             qrurl = makeBaseUri() + "/apps/" + args.app + "/query-rewrite/instances"
             objects = doHttpJsonGet(qrurl)
             if objects is not None:
                 create = {}
+                create['create'] = objects
+
                 jsonToFile(create, args.app + "_query_rewrite.json")
 
 

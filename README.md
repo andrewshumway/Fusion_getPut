@@ -9,20 +9,21 @@ are also included.
 This  can be download or cloned onto a customer's machine but using it locally is often easier.
 
 ## Recent changes
+* Added support for Collection Features, March 2022
 * Prior to v1.3, these scripts used Python version 2.7. From tag v1.3 onward, Python 3 is needed (developed against 3.9+).
 * In v1.3 (and until the bugs were fixed just after v1.3 was released) the --f5 option preferenced Fusion 4 i.e. False.  Some attempts were made to change this default to True but resulted in essoteric bugs.  To reflect the reality that Fusion 5.x is the more current standard, --f5 has been replaced with `--f4` which defaults to False.  Setting `--f4` will make the scripts Fusion 4 compatible.
 * Support added for Fusion 5 Predictive merchandizer objects templates, zones, and dataModels
 * Legacy Fusion (circa 4.2.1), allowed an update to an object (HTTP PUT) which was not currently part of the app specified in the Request URL (defined by the *APP.json file).  This transaction would also add the object to the APP.  Fusion changed and now (F4.2.6) rejects the object for both POST (already exists) and PUT (not in app).  The `--linkAndWriteShared` param now makes this work as per 4.2.1
-
 ##  Import or Export Fusion Apps
 
 Use `getApp.sh` to export a Fusion App and store it as files in an output directory.
 ```markdown
-usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-z ZIP] [-u USER]
-[--password PASSWORD] [--protocol PROTOCOL] [--port PORT]
-[-v] [--f4] [--keepLang] [--skipCollections SKIPCOLLECTIONS]
+usage: getApp.py [-h] [-a APP] [--collectCFeatures] [-d DIR] [--humanReadable]
+[--keepLang] [--skipCollections SKIPCOLLECTIONS]
 [--skipFilePrefix SKIPFILEPREFIX] [--removeVersioning]
-[--collectCFeatures] [--debug] [--noVerify] [--humanReadable]
+[--protocol PROTOCOL] [--port PORT] [-s SVR] [-u USER]
+[--password PASSWORD] [-v] [--f4] [--debug] [--noVerify]
+[-z ZIP]
 
 ______________________________________________________________________________
 Get artifacts associated with a Fusion app and store them together in a folder
@@ -34,68 +35,68 @@ ______________________________________________________________________________
 optional arguments:
 -h, --help            show this help message and exit
 -a APP, --app APP     App to export
+--collectCFeatures    Export the Collection Features.  default=false
 -d DIR, --dir DIR     Output directory, default: '${app}_ccyymmddhhmm'.
--s SVR, --server SVR  Name or IP of server to fetch data from,
-default: ${lw_IN_SERVER} or 'localhost'.
--z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server,
-default: None.
--u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
---password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
---protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
---port PORT           Fusion Port, default: ${lw_PORT} or 6764
--v, --verbose         Print details, default: False.
---f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
+--humanReadable       copy JS scripts to a human readable format, default: False.
 --keepLang            Keep the language directory and files of configsets.  This is removed by default for brevity.
 --skipCollections SKIPCOLLECTIONS
 Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs
 --skipFilePrefix SKIPFILEPREFIX
 Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_
 --removeVersioning    Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false
---collectCFeatures    Export the Collection Features.  default=false
+--protocol PROTOCOL   REST Protocol,  default: ${lw_PROTOCOL} or 'http'.
+--port PORT           Fusion Port, default: ${lw_PORT} or 6764
+-s SVR, --server SVR  Name or IP of server to fetch data from,
+default: ${lw_IN_SERVER} or 'localhost'.
+-u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
+--password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
+-v, --verbose         Print details, default: False.
+--f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
 --debug               Print debug messages while running, default: False.
 --noVerify            Do not verify SSL certificates if using https, default: False.
---humanReadable       copy JS scripts to a human readable format, default: False.
+-z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server,
+default: None.
 
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
 
 ```markdown
-usage: putApp.py [-h] -d DIR [--failOnStdError] [--protocol PROTOCOL] [-s SVR]
-                 [--port PORT] [-u USER] [--password PASSWORD]
-                 [--ignoreExternal] [-v] [--humanReadable] [--varFile VARFILE]
-                 [--makeAppCollections] [--doRewrite DOREWRITE] [--f4]
-                 [--keepCollAlias] [--linkAndWriteShared] [--debug]
-                 [--noVerify]
+usage: putApp.py [-h] -d DIR [--doRewrite] [--f4] [--failOnStdError]
+[--protocol PROTOCOL] [-s SVR] [--port PORT] [-u USER]
+[--password PASSWORD] [--ignoreExternal] [--keepCollAlias]
+[--humanReadable] [--linkAndWriteShared]
+[--makeAppCollections] [--skipCFeatures] [--debug]
+[--noVerify] [-v] [--varFile VARFILE]
 
 ______________________________________________________________________________
-Take a folder containing .json files (produced by getApp.py) and POST the contents 
-to a Fusion instance.  App and Collections will be created/altered as needed, 
-as will Pipelines, Parsers, Profiles and Datasources. NOTE: if launching from 
-putProject.sh, defaults will be pulled from the bash environment plus values 
+Take a folder containing .json files (produced by getApp.py) and POST the contents
+to a Fusion instance.  App and Collections will be created/altered as needed,
+as will Pipelines, Parsers, Profiles and Datasources. NOTE: if launching from
+putProject.sh, defaults will be pulled from the bash environment plus values
 set in bin/lw.env.sh
 ______________________________________________________________________________
 
 optional arguments:
-  -h, --help            show this help message and exit
-  -d DIR, --dir DIR     Input directory, required.
-  --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
-  --protocol PROTOCOL   Protocol,  Default: ${lw_PROTOCOL} or 'http'.
-  -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
-  --port PORT           Port, Default: ${lw_PORT} or 6764
-  -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
-  --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
-  --ignoreExternal      Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False
-  -v, --verbose         Print details, default: False.
-  --humanReadable       This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.
-  --varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
-  --makeAppCollections  Do create the default collections named after the App default: False.
-  --doRewrite DOREWRITE
-                        Import query rewrite objects (if any), default: False.
-  --f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
-  --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
-  --linkAndWriteShared  In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False
-  --debug               Print debug messages while running, default: False.
-  --noVerify            Do not verify SSL certificates if using https, default: False.
+-h, --help            show this help message and exit
+-d DIR, --dir DIR     Input directory, required.
+--doRewrite           Import query rewrite objects (if any), default: False.
+--f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
+--failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
+--protocol PROTOCOL   Protocol,  Default: ${lw_PROTOCOL} or 'http'.
+-s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
+--port PORT           Port, Default: ${lw_PORT} or 6764
+-u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
+--password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
+--ignoreExternal      Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False
+--keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
+--humanReadable       This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.
+--linkAndWriteShared  In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False
+--makeAppCollections  Do create the default collections named after the App default: False.
+--skipCFeatures       Skip loadeing of Collection Features files (usually only needed when collections are created), default: False.
+--debug               Print debug messages while running, default: False.
+--noVerify            Do not verify SSL certificates if using https, default: False.
+-v, --verbose         Print details, default: False.
+--varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
 
 ```
 
