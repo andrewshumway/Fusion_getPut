@@ -376,13 +376,12 @@ try:
         if keep:
             with open(os.path.join(args.dir, filename2), 'w') as outfile:
                 # sorting keys makes the output source-control friendly.  Do we also want to strip out
-                # timestamp fields?
                 if args.removeVersioning:
-                    if hasattr(jData,"updates"):
+                    if "updates" in jData:
                         jData.pop('updates', None)
-                    if hasattr(jData,"modifiedTime"):
+                    if "modifiedTime" in jData:
                         jData.pop('modifiedTime', None)
-                    if hasattr(jData,"version"):
+                    if "version" in jData:
                         jData.pop('version', None)
 
                 outfile.write(json.dumps(jData, indent=4, sort_keys=True,
