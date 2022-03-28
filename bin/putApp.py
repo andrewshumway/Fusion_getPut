@@ -802,5 +802,13 @@ except ImportError as ie:
           ie.name, file=sys.stderr)
     sys.exit(1)
 except Exception as e:
-    print("Exception: " + e.msg, file=sys.stderr)
+    msg = None
+    if hasattr(e,"msg"):
+        msg = e.msg
+    elif hasattr(e,'text'):
+            msg = e["text"]
+    else:
+        msg = str(e)
+
+    print("Exception: " + msg, file=sys.stderr)
     sys.exit("1")

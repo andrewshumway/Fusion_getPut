@@ -576,7 +576,11 @@ except ImportError as ie:
           "\ninstall the module via the pip installer\n\nExample:\npip3 install ",
           ie.name, file=sys.stderr)
 except Exception as e:
-    msg = str(e)
+    msg = None
     if hasattr(e,"msg"):
         msg = e.msg
+    elif hasattr(e,'text'):
+        msg = e["text"]
+    else:
+        msg = str(e)
     print("Exception: " + msg, file=sys.stderr)
