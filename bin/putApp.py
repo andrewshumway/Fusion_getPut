@@ -570,8 +570,8 @@ try:
                     eprint("Non OK response: " + str(response.status_code) + " when uploading " + file)
 
 
-    def eprint(*args, **kwargs):
-        print(*args, file=sys.stderr, **kwargs)
+    def eprint(*params, **kwargs):
+        print(*params, file=sys.stderr, **kwargs)
         if args.failOnStdError:
             sys.exit("Startup argument --failOnStdErr set, exiting putApp")
 
