@@ -387,6 +387,32 @@ try:
                     sys.exit(f'"Non OK response of "{response.status_code}" when POSTing app: "{f}" \nReason: "{reason}"\nAborting...')
 
 
+    def sortSchemafiles(e):
+        """
+        Telling Solr to reload config with every schema file load is problematic.
+          - slow
+          - we don't know dependencies and reloading requires order
+
+        However we have seen times when a synonyms or stopword file failed to load because a schema change
+        had not been reloaded.  The 500 error complained about a missing znode called schema.xml
+
+        While not perfect, ordering the files so that the end of the list has schema followed by solrconfig.xml
+        seems to get around the ordering problem.  THis doesn't mean that a dependency going the other direction
+        could not cause a problem though.  If that happens, a manual reload of individual files may be needed.
+
+        :param e:
+        :return:
+        """
+        # put signals and signals aggr collections first
+        # Perhaps all auto-created collections should be listed here
+        if not re.search("solrconfig.xml|schema",e):
+            e = "1_" + e
+        elif  re.search("schema",e):
+            e = "2_" + e
+        elif  re.search("schema",e):
+            e = "3_" + e
+        return e
+
     def sortCollection(e):
         # put signals and signals aggr collections first
         # Perhaps all auto-created collections should be listed here
@@ -414,7 +440,7 @@ try:
 
     def putFeatures():
         apiUrl = makeBaseUri() + "/collections"
-        files = getFileListing(os.path.join(args.dir,"features"))
+        files = getFileListing(os.path.join(args.dir,"features"),[])
         colfiles_o = getFileListForType("collections")
         colfiles = []
         for c in colfiles_o:
@@ -544,7 +570,8 @@ try:
 
 
         dir = os.path.join(args.dir, "configsets", colName )
-        files = getFileListing(dir)
+        files = sorted(getFileListing(dir,[]),key=sortSchemafiles)
+
         counter = 0;
 
         if len(files) > 0:
@@ -559,15 +586,32 @@ try:
                 if isLast:
                     url += '?reload=true'
                 #PUT to update, POST to add
-                response = doHttpPostPut(url,os.path.join(dir,file), (file in currentZkFiles))
-                if response and response.status_code >= 200 and response.status_code <= 250:
+                try:
+                    response = doHttpPostPut(url,os.path.join(dir,file), (file in currentZkFiles))
+                    response.raise_for_status()
                     if args.verbose:
                         sprint("\tUploaded " + file + " successfully")
                         if isLast:
                             sprint("\tSent reload=true to collection " + colName)
+                except Exception as e:
 
-                elif response and response.status_code:
-                    eprint("Non OK response: " + str(response.status_code) + " when uploading " + file)
+                    if hasattr(e,"response") and e.response.status_code:
+                        eprint("Non OK response: " + str(e.response.status_code) + " when uploading " + file)
+                    elif hasattr(e,"response"):
+                        r = e.response
+                        msg = None
+                        if hasattr(r,"msg"):
+                            msg = r.msg
+                        elif hasattr(e,'text'):
+                            msg = r["text"]
+                        else:
+                            msg = str(e)
+                            eprint(f"Error uploading {colName} configset file {file}. Msg: {msg}")
+                    else:
+                        msg = str(e)
+                        eprint(f"Error uploading {colName} configset file {file}. Msg: {msg}")
+            else:
+                sprint(f"WARN: scan of {dir} for files found non-file {file}")
 
 
     def eprint(*params, **kwargs):
@@ -698,6 +742,7 @@ try:
     def main():
         initArgs()
         fetchFusionVersion()
+
         # fetch collections first
         sprint("Uploading objects found under '" + args.dir + "' to Fusion version " + fusionVersion)
         sprint(f'Upload target API: {makeBaseUri()}')
@@ -725,6 +770,7 @@ try:
 
         putFileForType("datasources",None,None,lambda r,p: datasourceChecker(r,p))
         putJobSchedules()
+
         putQueryRewrite()
         if not args.f4:
             putTemplateFileForType('zones')
@@ -790,7 +836,6 @@ try:
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
-
 
         args = parser.parse_args()
         main()
