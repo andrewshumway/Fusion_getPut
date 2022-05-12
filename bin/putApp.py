@@ -170,11 +170,14 @@ try:
         if varMap and isinstance(obj, str) and re.search(replacePattern, obj):
             match = re.search(replacePattern, obj)
             group = match.group(1)
-            var = varMap[group]
-            if var:
-                if args.verbose:
-                    sprint("Substituting value in object " + objName + " for key: " + group)
-                obj = var
+            if group in varMap:
+                var = varMap[group]
+                if var:
+                    if args.verbose:
+                        sprint("Substituting value in object " + objName + " for key: " + group)
+                    obj = var
+            else:
+                eprint(f"Var replacement for file {objName} failed. Could not extract {group} from object element ")
         return obj
 
     def traverseAndReplace(obj, objName, varMap = None, path=None):
@@ -754,6 +757,7 @@ try:
         # do not update external searchCluster config if ignoreExternal=True
         if not args.ignoreExternal:
             putFileForType('searchCluster',True)
+
         putCollections()
         if not args.skipCFeatures:
             putFeatures()
@@ -764,7 +768,6 @@ try:
         putFileForType('query-pipelines')
         putFileForType('index-profiles')
         putFileForType('query-profiles')
-
         putFileForType('tasks')
         putFileForType('spark/jobs',None,None,lambda r,p: sparkChecker(r,p))
 
