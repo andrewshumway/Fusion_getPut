@@ -22,7 +22,7 @@ usage: getApp.py [-h] [-a APP] [--collectCFeatures] [-d DIR] [--humanReadable]
 [--keepLang] [--skipCollections SKIPCOLLECTIONS]
 [--skipFilePrefix SKIPFILEPREFIX] [--removeVersioning]
 [--protocol PROTOCOL] [--port PORT] [-s SVR] [-u USER]
-[--password PASSWORD] [-v] [--f4] [--debug] [--noVerify]
+[--password PASSWORD] [--jwt] [-v] [--f4] [--debug] [--noVerify]
 [-z ZIP]
 
 ______________________________________________________________________________
@@ -50,6 +50,7 @@ Comma delimited list of file names which should be skip; default=_system,prefs-,
 default: ${lw_IN_SERVER} or 'localhost'.
 -u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
 --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
+--jwt                 JWT token.  if passed, password is ignored
 -v, --verbose         Print details, default: False.
 --f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
 --debug               Print debug messages while running, default: False.
@@ -87,6 +88,7 @@ optional arguments:
 --port PORT           Port, Default: ${lw_PORT} or 6764
 -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
 --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
+--jwt                 JWT token for Fusion.  If passed, password is ignored.
 --ignoreExternal      Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False
 --keepCollAlias       Do not create Solr collection when the Fusion Collection name does not match the Solr collection. Instead, fail if the collection does not exist.  default: True.
 --humanReadable       This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.

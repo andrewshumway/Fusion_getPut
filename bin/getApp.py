@@ -168,15 +168,20 @@ try:
 
     def doHttp(url, usr=None, pswd=None, headers={}):
         response = None
+        auth = None
         if usr is None:
             usr = args.user
         if pswd is None:
             pswd = args.password
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
 
         verify = not args.noVerify
         try:
             debug("calling requests.get url:" + url + " usr:" + usr + " pswd:" + pswd + " headers:" + str(headers))
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd), headers=headers, verify=verify)
+            response = requests.get(url, auth=auth, headers=headers, verify=verify)
             return response
         except requests.ConnectionError as e:
             eprint(e)
@@ -552,6 +557,7 @@ try:
                         help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
         parser.add_argument("--password",
                         help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
+        parser.add_argument("--jwt",help="JWT token for authentication.  If set, password is ignored",default=None)
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--f4",

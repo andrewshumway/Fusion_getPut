@@ -170,11 +170,14 @@ try:
         if varMap and isinstance(obj, str) and re.search(replacePattern, obj):
             match = re.search(replacePattern, obj)
             group = match.group(1)
-            var = varMap[group]
-            if var:
-                if args.verbose:
-                    sprint("Substituting value in object " + objName + " for key: " + group)
-                obj = var
+            if group in varMap:
+                var = varMap[group]
+                if var:
+                    if args.verbose:
+                        sprint("Substituting value in object " + objName + " for key: " + group)
+                    obj = var
+            else:
+                eprint(f"Var replacement for file {objName} failed. Could not extract {group} from object element ")
         return obj
 
     def traverseAndReplace(obj, objName, varMap = None, path=None):
@@ -201,6 +204,7 @@ try:
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
         extension = os.path.splitext(dataFile)[1]
+        auth = None
         if headers is None:
             headers = {}
             if extension == '.xml' or dataFile.endswith('managed-schema'):
@@ -209,15 +213,20 @@ try:
                 headers['Content-Type'] = "application/json"
             else:
                 headers['Content-Type'] = "text/plain"
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
 
         files = None
         try:
             if os.path.isfile(dataFile):
                 with open(dataFile,'rb') as payload:
                     if isPut:
-                        response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=payload,verify=isVerify())
+                        response = requests.put(url, auth=auth,headers=headers, data=payload,verify=isVerify())
                     else:
-                        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=payload,verify=isVerify())
+                        response = requests.post(url, auth=auth,headers=headers, data=payload,verify=isVerify())
 
                     return response
             else:
@@ -236,12 +245,18 @@ try:
             sprint("\nAttempting POST of " + type + " definition for '" + id + "' to Fusion.")
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        headers = {}
-        headers['Content-Type'] = "application/json"
+
+        auth = None
+        headers = {'Content-Type': "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+
         url = apiUrl
         if postParams is not None:
             url += "?" + postParams
-        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+        response = requests.post(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
         url = apiUrl
         if existsChecker(response,payload):
             if args.verbose:
@@ -252,7 +267,7 @@ try:
                 url += "?" + putParams
 
             # if we got here then we tried posting but that didn't work so now we will try a PUT
-            response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+            response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
             # if the PUT says the object exists, then the the likely problem is that  the object isn't linked to the current app
             # check and see if the response complains of the "id not in app" and add a link if needed.
             if args.linkAndWriteShared and \
@@ -261,7 +276,7 @@ try:
                 lresponse = makeLink(type,id)
                 if lresponse.status_code >= 200 and lresponse.status_code <= 250:
                     #try update again after link is in place
-                    response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+                    response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
 
         if response.status_code >= 200 and response.status_code <= 250:
             sprint( "Element " + type + " id: " + id + " PUT/POSTed successfully")
@@ -321,6 +336,13 @@ try:
 
     def makeLink(resourcetype, id):
         type = None
+        auth = None
+        headers = {"Content-Type": "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(args.user, args.password)
+
         if resourcetype in OBJ_TYPES:
           type = OBJ_TYPES[resourcetype]['linkType']
         else:
@@ -331,7 +353,7 @@ try:
         payload = {"subject":"","object":"","linkType":"inContextOf"}
         payload['subject'] = f"{type}:{id}"
         payload['object'] = f'app:{appName}'
-        lresponse = requests.put(lurl, auth=requests.auth.HTTPBasicAuth(args.user, args.password),headers={"Content-Type": "application/json"}, data=json.dumps(payload),verify=isVerify())
+        lresponse = requests.put(lurl, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
         if lresponse and lresponse.status_code < 200 or lresponse.status_code > 250:
             eprint("Non OK response: {}   when linking object {} to App {}".format(str(lresponse.status_code),payload['subject'],appName))
 
@@ -424,9 +446,15 @@ try:
     def isDuplicateFeature(url, feature,usr=None,pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
+        auth = None
         headers = {"Content-Type": "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+
         try:
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd), headers=headers, verify=isVerify())
+            response = requests.get(url, auth=auth, headers=headers, verify=isVerify())
             response.raise_for_status()
             currentFeature = json.loads(response.content)
             if args.debug:
@@ -522,9 +550,16 @@ try:
     def doHttp(url,usr=None, pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
+        auth = None
+        headers = {}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
         response = None
         try:
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),verify=isVerify())
+            response = requests.get(url, auth=auth,headers=headers,verify=isVerify())
             return response
         except requests.ConnectionError as e:
             eprint(e)
@@ -723,10 +758,14 @@ try:
     def doHttpJsonPut(url,payload, usr=None, pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        headers = {}
-        headers['Content-Type'] = "application/json"
+        headers = {'Content-Type': "application/json"}
+        auth = None
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
         try:
-            response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload))
+            response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload))
             return response
         except requests.ConnectionError as e:
             eprint(e)
@@ -754,6 +793,7 @@ try:
         # do not update external searchCluster config if ignoreExternal=True
         if not args.ignoreExternal:
             putFileForType('searchCluster',True)
+
         putCollections()
         if not args.skipCFeatures:
             putFeatures()
@@ -764,7 +804,6 @@ try:
         putFileForType('query-pipelines')
         putFileForType('index-profiles')
         putFileForType('query-profiles')
-
         putFileForType('tasks')
         putFileForType('spark/jobs',None,None,lambda r,p: sparkChecker(r,p))
 
@@ -819,6 +858,8 @@ try:
         parser.add_argument("--port", help="Port, Default: ${lw_PORT} or 6764") #,default="8764"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
+        parser.add_argument("--jwt",help="JWT token for authentication.  If set, password is ignored",default=None)
+
         parser.add_argument("--ignoreExternal", help="Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False",default=False,action="store_true")
         parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
                                            "Instead, fail if the collection does not exist.  default: True.",default=False,action="store_true")# default=False
@@ -852,6 +893,8 @@ except Exception as e:
         msg = e.msg
     elif hasattr(e,'text'):
             msg = e["text"]
+    elif hasattr(e,'txt'):
+        msg = e["txt"]
     else:
         msg = str(e)
 
