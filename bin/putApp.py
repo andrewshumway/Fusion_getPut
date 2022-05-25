@@ -10,7 +10,7 @@ Update or modify as needed
 
 #  Requires a python 2.7.5+ interpreter
 try:
-    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, urllib
+    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, urllib, base64
     from argparse import RawTextHelpFormatter
 
     # get current dir of this script

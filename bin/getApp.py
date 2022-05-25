@@ -34,9 +34,9 @@ Update or modify as needed
 # query Fusion for all datasources, index pipelines and query pipelines.  Then make lists of names
 # which start with the $PREFIX so that they can all be exported.
 
-#  Requires a python 2.7.5+ interpreter (pre tag v1.3) or 3.x after (tested on 3.9)
+#  Requires a python 3.x+ interpreter (tested on 3.8.9)
 try:
-    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, shutil, types
+    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, shutil, types,base64
     from io import BytesIO, StringIO
     # StringIO moved into io package for Python 3
     # from StringIO import StringIO
@@ -47,24 +47,23 @@ try:
     cwd = os.path.dirname(os.path.realpath(sys.argv[0]))
 
     OBJ_TYPES = {
-        "fusionApps": "APP"
-        , "indexPipelines": "IPL"
-        , "queryPipelines": "QPL"
-        , "indexProfiles": "IPF"
-        , "queryProfiles": "QPF"
-        , "parsers": "PS"
-        , "dataSources": "DS"
-        , "collections": "COL"
-        , "jobs": "JOB"
-        , "tasks": 'TSK'
-        , "sparkJobs": 'SPRK'
-        , "blobs": "BLOB"
-        , "searchCluster": "SC"
-        , "templates": "TPL"
-        , "zones": "ZN"
-        , "dataModels": "DM"
-        # collection feature is odd in that we store an array in the file but POST individual elements
-        , "features": "CF"
+        "fusionApps": { "ext": "APP"}
+        ,"zones":{"ext":"ZN", "urlTypex":"zone"}
+        ,"templates":{"ext":"TPL", "urlTypex":"template"}
+        ,"dataModels":{"ext":"DM", "urlTypex":"data-model"}
+        ,"indexPipelines": { "ext": "IPL" , "urlTypex":"index-pipeline"}
+        ,"queryPipelines": { "ext": "QPL" , "urlTypex":"query-pipeline"}
+        ,"indexProfiles": { "ext": "IPF"  , "urlTypex":"index-profile"}
+        ,"queryProfiles": { "ext": "QPF" , "urlTypex":"query-profile"}
+        ,"parsers": { "ext": "PS" , "urlTypex":"parser"}
+        ,"dataSources": { "ext": "DS" , "urlTypex":"datasource"}
+        ,"collections": { "ext": "COL", "urlType":"collection"}
+        ,"jobs": { "ext": "JOB" , "urlTypex":"job"}
+        ,"tasks": { "ext": 'TSK' ,"urlTypex":"task"}
+        ,"sparkJobs": { "ext": 'SPRK' , "filelist": [] , "urlTypex":"spark"}
+        ,"blobs": { "ext": "BLOB" ,"urlType":"blob"}
+        # features can't be fetched by id in the export API but come along with the collections.
+        ,"features": { "ext": "CF"}
     }
 
     # default is to skip "_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"
@@ -73,11 +72,10 @@ try:
     SKIP_PREFIX = []
     searchClusters = {}
     collections = []
-
+    PARAM_SIZE_LIMIT = 6400
 
     def eprint(*args, **kwargs):
         print(*args, file=sys.stderr, **kwargs)
-
 
     def sprint(msg):
         # change inputs to *args, **kwargs in python 3
@@ -85,18 +83,20 @@ try:
         print(msg)
         sys.stdout.flush()
 
-
     def debug(msg):
         if args.debug:
             sprint(msg)
 
+    def verbose(msg):
+        if args.verbose:
+            sprint(msg)
 
     def getSuffix(type):
-        return '_' + OBJ_TYPES[type] + '.json'
+        return '_' + OBJ_TYPES[type]['ext'] + '.json'
 
 
     def applySuffix(f, type):
-        suf = OBJ_TYPES[type]
+        suf = OBJ_TYPES[type]["ext"]
         if not f.endswith(suf):
             return f + getSuffix(type);
         return f + ".json"
@@ -109,14 +109,11 @@ try:
         debug('initArgs start')
 
         # setting come from command line but if not set then pull from environment
-        if args.protocol == None:
-            args.protocol = initArgsFromMaps("lw_PROTOCOL", "http", os.environ, env)
-
         if args.server == None:
-            args.server = initArgsFromMaps("lw_IN_SERVER", "localhost", os.environ, env)
-
-        if args.port == None:
-            args.port = initArgsFromMaps("lw_PORT", "6764", os.environ, env)
+            args.server = initArgsFromMaps("lw_IN_URL", "https://localhost", os.environ, env)
+        elif not args.server.lower().startswith("http"):
+            eprint("--server argument must be in url format e.g. http://lowercase")
+            sys.exit(2)
 
         if args.user == None:
             args.user = initArgsFromMaps("lw_USERNAME", "admin", os.environ, env)
@@ -136,12 +133,6 @@ try:
             defDir = str(args.zip) + "_" + datetime.datetime.now().strftime('%Y%m%d_%H%M')
             args.dir = defDir
 
-        # default passes a comma delimited string of things to skip
-        if args.skipCollections is not None and str(args.skipCollections) != "":
-            SKIP_COLLECTIONS = args.skipCollections.split(",")
-        if args.skipFilePrefix is not None and str(args.skipFilePrefix) != "":
-            SKIP_PREFIX = args.skipFilePrefix.split(",")
-
 
     def initArgsFromMaps(key, default, penv, env):
         # Python3: dict.has_key -> key in dict
@@ -159,50 +150,130 @@ try:
 
 
     def makeBaseUri():
-        uri = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        # args.f4 is a bool as enforced in initParams
-        if args.f4:
-            uri += "/apollo"
+        uri = args.server + "/api"
         return uri
 
 
-    def doHttp(url, usr=None, pswd=None, headers={}):
+    def doHttp(url, usr=None, pswd=None, headers={},params={}):
         response = None
+        auth = None
         if usr is None:
             usr = args.user
         if pswd is None:
             pswd = args.password
 
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
         verify = not args.noVerify
         try:
             debug("calling requests.get url:" + url + " usr:" + usr + " pswd:" + pswd + " headers:" + str(headers))
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd), headers=headers, verify=verify)
+            response = requests.get(url, auth=auth, headers=headers, verify=verify,params=params)
             return response
         except requests.ConnectionError as e:
             eprint(e)
 
 
-    def doHttpJsonGet(url, usr=None, pswd=None):
-        response = None
-        response = doHttp(url, usr, pswd)
-        if response is not None and response.status_code == 200:
-            contentType = response.headers['Content-Type']
-            debug("contentType of response is " + contentType)
-            # use a contains check since the contentType may be 'application/json; utf-8' or multi-valued
-            if "application/json" in contentType:
-                j = json.loads(response.content)
-                return j
-        else:
-            if response is not None and response.status_code == 401 and 'unauthorized' in response.text:
-                eprint(
-                    "Non OK response of " + str(response.status_code) + " for URL: " + url + "\nCheck your password\n")
-            elif response is not None and response.status_code:
-                eprint("Non OK response of " + str(response.status_code) + " for URL: " + url)
+    def makeExportParamsFromJson(j):
+        """
+        Make n export URL containing all of the needed id えぇめんts existing in the objects.json file
+        :param j:
+        :return　list of sized dictionaries of params such that none exceeds 6.5k:
+        """
+        url = makeBaseUri() + "/objects/export"
+        allParams = []
+        params = {"filterPolicy":"system","deep":"false"}
+        #allParams.insert(0,params)
+
+        if j is None or not "objects" in j:
+            return allParams
+
+        objects = j["objects"]
+        # save the fusionApps[0] element
+        if "fusionApps" in objects and isinstance(objects["fusionApps"],list):
+            OBJ_TYPES["fusionApps"]["appDef"] = objects["fusionApps"][0]
+
+        keys = OBJ_TYPES.keys()
+
+        for key in keys:
+            if key in objects:
+                items = objects[key]
+
+                itms = []
+                for item in items:
+                    if isinstance(item,dict) \
+                            and "id" in item \
+                            and not (key == "blobs" and item["id"].startswith("prefs-")):
+                        itms.append(item["id"])
+
+                if isinstance(itms, list) and "urlType" in OBJ_TYPES[key]:
+                    # check and see if adding this set of params would push us over the limit.
+                    # If so, store off the smaller params set in allParams and start a new one
+                    if len(str(params)) + len(str(itms)) > PARAM_SIZE_LIMIT:
+                        allParams.insert(0,params)
+                        params = {"filterPolicy":"system","deep":"false"}
+                        params[OBJ_TYPES[key]["urlType"] + ".ids"] = itms
+                    # otherwise add to the current params list since we are under the size limit
+                    else:
+                        params[OBJ_TYPES[key]["urlType"] + ".ids"] = itms
+
+        ## add any fragment params in to the results.  For small apps, this may be everything
+        if len(params) > 1 and not params in allParams:
+            allParams.insert(0,params)
+        return allParams
 
 
-    def doHttpZipGet(url, usr=None, pswd=None):
+
+    def doGetJsonApp():
+        """
+        fetch a json export of the app.  The purpose is to get a list of everything that belongs to the App.
+        Then, after extracting all but the blobs and collections fetch those into Zip(s) and extract including files.
+        All this to work around the fact that we can't export an app to a zip without query_rewrite
+        """
+        url = makeBaseUri() + "/objects/export?filterPolicy=system&app.ids=" + args.app
+        headers = {'accept': 'application/json'}
+        try:
+
+            debug("calling requests.get url:" + url + " headers:" + str(headers))
+            verbose(f"Getting JSON elements of APP {args.app} from {args.server}")
+            response = doHttp(url,headers=headers)
+            if response is not None and response.status_code == 200:
+                contentType = response.headers['Content-Type']
+                if "application/json" in contentType:
+                    j = json.loads(response.content)
+                    exportParams = makeExportParamsFromJson(j)
+                    ## in addition to processing all of the zip files from exportParam sets, we need to output
+                    # APP and possibly features but don't grab blobs and collections.  Those need to come from full zips
+                    j['objects'].pop('blobs')
+                    j['objects'].pop('collections')
+
+                    verbose(f"Extracting contents of downloaded APP {args.app}")
+                    extractAppFromZip(objects=j,validateAppName=True)
+                    url = makeBaseUri() + "/objects/export"
+                    index = 0
+                    for params in exportParams:
+                        if args.verbose:
+                            index += 1
+                            sprint(f"\nFetching Zip export from {url} params set {index}")
+                        zipfile = doHttpZipGet( url,params=params)
+                        extractAppFromZip(zipfile,validateAppName=False)
+
+            else:
+                if response is not None and response.status_code == 401 and 'unauthorized' in response.text:
+                    eprint(
+                        "Non OK response of " + str(response.status_code) + " for URL: " + url + "\nCheck your password\n")
+                elif response is not None and response.status_code:
+                    eprint("Non OK response of " + str(response.status_code) + " for URL: " + url)
+        except Exception as e:
+            eprint( f"Exception when fetching App: {str(e)}" )
+
+
+
+    def doHttpZipGet(url, usr=None, pswd=None,params={}):
         response = None
-        response = doHttp(url, usr, pswd)
+        response = doHttp(url, usr, pswd,params=params)
         if response is not None and response.status_code == 200:
             contentType = response.headers['Content-Type']
             debug("contentType of response is " + contentType)
@@ -222,59 +293,33 @@ try:
             eprint("Problem requesting URL: '" + url + "'.  Check server, protocol, port, etc.")
 
 
-    def gatherSearchClusters():
-        if args.zip is None:
-            scurl = makeBaseUri() + "/searchCluster"
-            objects = doHttpJsonGet(scurl)
-            if objects is not None:
-                for obj in objects:
-                    if 'id' in obj and obj['id'] != "default":
-                        searchClusters[obj['id']] = obj
+    def extractAppFromZip( zipfile = None, objects=None, validateAppName = True):
+        """
+        Either zipfile or objects must be valued but not both
 
-    def gatherQueryRewrite():
+        :param zipfile:
+        :param objects:
+        :param validateAppName: if True, the objects.fusionApps[0].id must equal args.app or an error will be printed
+        :return:
+        """
 
-        if args.zip is None:
-            sprint("Gathering Query Rewrite Objects")
-            qrurl = makeBaseUri() + "/apps/" + args.app + "/query-rewrite/instances"
-            objects = doHttpJsonGet(qrurl)
-            if objects is not None:
-                create = {}
-                create['create'] = objects
+        if (zipfile and objects) or not (zipfile or objects):
+            raise ValueError('Either zipfile or objects parameter is required.')
 
-                jsonToFile(create, args.app + "_query_rewrite.json")
+        filelist = []
+        if zipfile:
+            filelist = zipfile.namelist()
+            if not "objects.json" in filelist:
+                sys.exit("Exported zip does not contain objects.json.  Can not proceed.")
+            jstr = zipfile.open("objects.json").read()
+            objects = json.loads(jstr)
 
-
-    def extractClusterForCollection(collection):
-        clusterId = collection['searchClusterId']
-        if clusterId in searchClusters:
-            # some jobs have : searchClusters the id, some blobs have a path.  Remove problem characters in filename
-            filename = applySuffix(clusterId.replace(':', '_').replace('/', '_'), 'searchCluster')
-            jsonToFile(searchClusters[clusterId], filename)
-            del searchClusters[clusterId]  # only collect once
-
-
-    def extractProject():
-        # go thru each valued array and export them
-        objects = None
-        zipfile = None
-        if args.zip is not None:
-            zipfile = ZipFile(args.zip, 'r')
-        else:
-            baseUrl = makeBaseUri() + "/objects/export?filterPolicy=system&app.ids=" + args.app
-            zipfile = doHttpZipGet(baseUrl)
-
-        filelist = zipfile.namelist()
-        # first process objects, then extract blobs and configsets
-        if not "objects.json" in filelist:
-            sys.exit("Exported zip does not contain objects.json.  Can not proceed.")
-        jstr = zipfile.open("objects.json").read()
-        objects = json.loads(jstr)
-        # check to be sure that the requested application exsists and give error if not
-        if args.app is not None and (not objects or
-                                     (not len(objects['objects']) > 0) or
-                                     (not objects['objects']['fusionApps']) or
-                                     (not objects['objects']['fusionApps'][0]['id']) or
-                                     (not objects['objects']['fusionApps'][0]['id'] == args.app)):
+        # check to be sure that the requested application exists and give error if not
+        if validateAppName and args.app is not None and not ( objects and
+                                     (len(objects['objects']) > 0) and
+                                     ( objects['objects']['fusionApps']) and
+                                     ( objects['objects']['fusionApps'][0]['id']) and
+                                     ( objects['objects']['fusionApps'][0]['id'] == args.app)):
             sys.exit("No Fusion App called '" + args.app + "' found on server '" + args.server + "'.  Can not proceed.")
 
         # sorting ensures that collections are known when other elements are extracted
@@ -290,7 +335,8 @@ try:
             elif shouldExtractEmbeddedZip(filename):
                 extractZip(filename, zipfile)
 
-        zipfile.close()
+        if zipfile:
+           zipfile.close()
 
 
     # check for blob zips which should be extracted intact or non-zipped configsets
@@ -304,8 +350,6 @@ try:
         # in 4.0.2 configsets are already unzip so each file can be extracted.  this block should catch 4.0.2 case
         # and shouldExtractConfig will catch the 4.0.1 case
         elif len(path) > 2 and path[0] == 'configsets' and ext != '.zip' and path[1] in collections:
-            if not args.keepLang and "lang" in path:
-                return False
             return True
         return False
 
@@ -367,25 +411,28 @@ try:
         processTypedElementFunc(elements, type)
 
 
-    def jsonToFile(jData, filename):
+    def jsonToFile(jData, type,filename):
         # replace spaces in filename to make the files sed friendly
         filename2 = filename.replace(' ', '_')
+        outpath = os.path.join(args.dir,type)
+        if type and not os.path.isdir(outpath):
+            os.makedirs(outpath)
 
         # bail out if the filename starts with any of the SKIP_PREFIX terms
         keep = shouldKeepFile(filename2)
         if keep:
-            with open(os.path.join(args.dir, filename2), 'w') as outfile:
+            with open(os.path.join(args.dir, type,filename2), 'w') as outfile:
                 # sorting keys makes the output source-control friendly.  Do we also want to strip out
-                if args.removeVersioning:
-                    if "updates" in jData:
-                        jData.pop('updates', None)
-                    if "modifiedTime" in jData:
-                        jData.pop('modifiedTime', None)
-                    if "version" in jData:
-                        jData.pop('version', None)
+                if "updates" in jData:
+                    jData.pop('updates', None)
+                if "modifiedTime" in jData:
+                    jData.pop('modifiedTime', None)
+                if "version" in jData:
+                    jData.pop('version', None)
 
                 outfile.write(json.dumps(jData, indent=4, sort_keys=True,
                                          separators=(', ', ': ')))
+                outfile.close()
 
 
     def collectById(elements, type, keyField='id', nameSpaceField=None):
@@ -395,10 +442,9 @@ try:
             id = e[keyField]
             if type == "blobs" and id.startswith("prefs-"):
                 continue
-            if args.verbose:
-                sprint("Processing '" + type + "' object: " + id)
+            verbose("Processing '" + type + "' object: " + id)
             # spin thru e and look for 'stages' with 'script'
-            if args.humanReadable and isinstance(e, dict) and type.endswith("Pipelines") and ('stages' in e.keys()):
+            if isinstance(e, dict) and type.endswith("Pipelines") and ('stages' in e.keys()):
                 for stage in e['stages']:
                     if isinstance(stage, dict) and ('script' in stage.keys()):
                         script = stage['script']
@@ -413,7 +459,9 @@ try:
                    filename = applySuffix( re.sub(r"[/\\:.\s]",'_',ns) + '_' + id.replace(':', '_').replace('/', '_'),type)
             else:
                 filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
-            jsonToFile(e, filename)
+
+
+            jsonToFile(e,type,filename)
 
 
     def collectProfileById(elements, type):
@@ -439,15 +487,13 @@ try:
             eprint("Green code expects a single ALL element or array of Profiles but found " + len(
                 elements) + " code needs attention")
 
+
     def collectFeatures(elements,type="features"):
         if args.collectCFeatures:
-            outdir = os.path.join(args.dir,"features")
-            if not os.path.isdir(outdir):
-                os.makedirs(outdir)
             for col in elements:
                 features = elements[col]
-                filename = os.path.join("features",applySuffix(col.replace(':', '_').replace('/', '_'), type))
-                jsonToFile(features,filename)
+                filename = applySuffix(col.replace(':', '_').replace('/', '_'), type)
+                jsonToFile(features,type,filename)
 
     def collectCollections(elements, type="collections"):
         keep = []
@@ -456,7 +502,6 @@ try:
             if shouldKeepCollection(id, e):
                 keep.append(e)
                 # make sure associated clusters are exported
-                extractClusterForCollection(e)
                 # keep track of the default collections we are exporting so that schema can be exported as well
                 # do not export schema for collections on non-default clusters.  Best to not mess with remote config
                 if e['searchClusterId'] == 'default':
@@ -471,8 +516,7 @@ try:
         # Keep everything except what's in the Skip list
         for cType in SKIP_PREFIX:
             if filename.startswith(cType):
-                if args.verbose:
-                    sprint(f"Skipping export of {id} file")
+                verbose(f"Skipping export of {id} file")
                 return False
         return True
 
@@ -484,8 +528,7 @@ try:
         # Keep everything except what's in the Skip list
         for cType in SKIP_COLLECTIONS:
             if id.endswith(cType):
-                if args.verbose:
-                    sprint(f"Skipping export of {id} collection")
+                verbose(f"Skipping export of {id} collection")
                 return False
         return True
 
@@ -500,15 +543,14 @@ try:
         if not os.path.isdir(args.dir):
             os.makedirs(args.dir)
         # Fetch solr clusters map so we can export if needed
-        gatherSearchClusters()
         target = args.app
+        zipfile = None
         if args.zip is not None:
             sprint("Getting export zip from file '" + args.zip + "'.")
+            zipfile = ZipFile(args.zip, 'r')
+            extractAppFromZip(zipfile)
         else:
-            sprint("Geting export zip for app '" + args.app + "' from server '" + args.server + "'.")
-        extractProject()
-
-        gatherQueryRewrite()
+            doGetJsonApp()
 
 
     if __name__ == "__main__":
@@ -525,38 +567,18 @@ try:
 
         # parser.add_argument_group('bla bla bla instruction go here and they are really long \t and \n have tabs and\n newlines')
         parser.add_argument("-a", "--app", help="App to export")  # ,default="lwes_"
-        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=false", default=False, action="store_true")
-
+        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=fFlse", default=False, action="store_true")
         parser.add_argument("-d", "--dir",
                             help="Output directory, default: '${app}_ccyymmddhhmm'.")  # ,default="default"
-        parser.add_argument("--humanReadable", help="copy JS scripts to a human readable format, default: False.",
-                            default=False, action="store_true")  # default=False
-        parser.add_argument("--keepLang",
-                        help="Keep the language directory and files of configsets.  This is removed by default for brevity.",
-                        default=False, action="store_true")
-        parser.add_argument("--skipCollections",
-                        help="Comma delimited list of collection name suffixes to skip, e.g. _signals; default=_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs",
-                        default="_signals,signals_aggr,job_reports,query_rewrite,_query_rewrite_staging,user_prefs")
-        parser.add_argument("--skipFilePrefix",
-                        help="Comma delimited list of file names which should be skip; default=_system,prefs-,_tmp_",
-                        default="_system,prefs-,_tmp_")
-        parser.add_argument("--removeVersioning",
-                        help="Remove the modifiedTime, updates, and version elements from JSON objects since these will always flag as a change, default=false",
-                        default=False, action="store_true")
-
-        parser.add_argument("--protocol", help="REST Protocol,  default: ${lw_PROTOCOL} or 'http'.")
-        parser.add_argument("--port", help="Fusion Port, default: ${lw_PORT} or 6764")  # ,default="8764"
         parser.add_argument("-s", "--server", metavar="SVR",
-                            help="Name or IP of server to fetch data from, \ndefault: ${lw_IN_SERVER} or 'localhost'.")  # default="localhost"
+                            help="Server url e.g. http://localhost:80, \ndefault: ${lw_IN_SERVER} or 'localhost'.")  # default="localhost"
         parser.add_argument("-u", "--user",
                         help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
         parser.add_argument("--password",
                         help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
+        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, user and password will be ignored",default=None)
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
-        parser.add_argument("--f4",
-                            help="Use the /apollo/ section of request urls as required by 4.x.  Default=False.",
-                            default=False, action="store_true")  # default=False
         parser.add_argument("--debug", help="Print debug messages while running, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--noVerify", help="Do not verify SSL certificates if using https, default: False.",

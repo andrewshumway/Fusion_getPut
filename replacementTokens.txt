@@ -1,8 +1,0 @@
-#
-# lines starting with # are comments and will not be processed.
-#
-# replacement of ${token} type strings is known to work but escaping of quotes is problematic
-#
-#Example:
-#@example_token~@ | any occurrence of ${@example_token~@} found in the file will be replace with text from after the pipe.
-#
