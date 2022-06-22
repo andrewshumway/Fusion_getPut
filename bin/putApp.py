@@ -10,8 +10,9 @@ Update or modify as needed
 
 #  Requires a python 2.7.5+ interpreter
 try:
-    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, urllib, base64
+    import json, sys, argparse, os, subprocess, sys, requests, datetime, re, urllib
     from argparse import RawTextHelpFormatter
+    from pathlib import Path
 
     # get current dir of this script
     cwd = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -25,23 +26,18 @@ try:
         "fusionApps": { "ext": "APP"  , "filelist": [] }
         ,"zones":{"ext":"ZN", "filelist":[],  "api":"templating/zones","linkType":"zone"}
         ,"templates":{"ext":"TPL", "filelist":[], "api":"templating/templates","linkType":"template"}
-        ,"data-models":{"ext":"DM", "filelist":[]}
-        ,"index-pipelines": { "ext": "IPL" , "filelist": [],"linkType": "index-pipeline" }
-        ,"query-pipelines": { "ext": "QPL" , "filelist": [] ,"linkType": "query-pipeline" }
-        ,"index-profiles": { "ext": "IPF" , "filelist": [],"linkType": "index-profile" }
-        ,"query-profiles": { "ext": "QPF" , "filelist": [],"linkType": "query_profile" }
+        ,"dataModels":{"ext":"DM", "api":"data-models", "filelist":[],"linkType": "data-model"}
+        ,"indexPipelines": { "ext": "IPL" , "filelist": [],"api":"index-pipelines","linkType": "index-pipeline" }
+        ,"queryPipelines": { "ext": "QPL" , "filelist": [] ,"api":"query-pipelines","linkType": "query-pipeline" }
+        ,"indexProfiles": { "ext": "IPF" , "filelist": [],"api":"index-profiles","linkType": "index-profile" }
+        ,"queryProfiles": { "ext": "QPF" , "filelist": [],"api":"query-profiles","linkType": "query-profile" }
         ,"parsers": { "ext": "PS" , "filelist": [],"linkType": "parser" }
-        ,"datasources": { "ext": "DS" , "api": "connectors/datasources","filelist": [], "substitute": True,"linkType": "datasource"}
+        ,"dataSources": { "ext": "DS" , "api": "connectors/datasources","filelist": [], "substitute": True,"linkType": "datasource"}
         ,"collections": { "ext": "COL" , "filelist": [] ,"linkType": "collection"}
         ,"jobs": { "ext": "JOB" , "filelist": [] }
         ,"tasks": { "ext": 'TSK' , "filelist": [],"linkType": "task" }
-        ,"spark/jobs": { "ext": 'SPRK' , "filelist": [] , "versionedApi" : {
-            "4.0.1": "spark/jobs"
-            ,"4.0.2": "spark/configurations"
-            ,"default": "spark/configurations"
-        },"linkType": "spark"}
+        ,"sparkJobs": { "ext": 'SPRK' , "filelist": [],"api":"spark/configurations" ,"linkType": "spark"}
         ,"blobs": { "ext": "BLOB" , "filelist": [] ,"linkType": "blob"}
-        ,"searchCluster": { "ext": "SC" , "filelist": [] }
         ,"features": { "ext": "CF" , "filelist": [] }
 
     }
@@ -75,10 +71,8 @@ try:
             api = type # default api the same name as type
             if 'api' in typeObj:
                 api = typeObj['api']
-            if 'versionedApi' in typeObj:
-                api = getVersionedApi(type,typeObj, api)
         else:
-            eprint("ERROR: No object Suffix of '" + type + "' is registered in OBJ_TYPES. ")
+                eprint("ERROR: No api path registered for OBJ_TYPE[ '" + type + "' ]. ")
         return api
 
     # lookup the type of object based on the _SUFFIX.json SUFFIX from a file
@@ -114,14 +108,8 @@ try:
         env = {} #some day we may get better environment passing
 
         #setting come from command line but if not set then pull from environment
-        if args.protocol == None:
-            args.protocol = initArgsFromMaps("lw_PROTOCOL","http",os.environ,env)
-
         if args.server == None:
             args.server = initArgsFromMaps("lw_OUT_SERVER","localhost",os.environ,env)
-
-        if args.port == None:
-            args.port =  initArgsFromMaps("lw_PORT","6764",os.environ,env)
 
         if args.user == None:
             args.user = initArgsFromMaps("lw_USERNAME","admin",os.environ,env)
@@ -135,7 +123,10 @@ try:
         if args.varFile != None:
             if os.path.isfile(args.varFile):
                 with open(args.varFile, 'r') as jfile:
-                    varReplacements = json.load(jfile);
+                    try:
+                        varReplacements = json.load(jfile)
+                    except Exception as  e:
+                      sprint(f"Problem parsing json from {args.varFile}, {str(e)}")
             else:
                 sys.exit( "Cannot find or access the " + args.varFile + " file.  Process aborted.")
 
@@ -153,9 +144,8 @@ try:
 
     # if we are exporting an app then use the /apps/appname bas uri so that exported elements will be linked to the app
     def makeBaseUri(forceLegacy=False):
-        base = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        if args.f4:
-            base += "/apollo"
+        base = args.server + "/api"
+
         if not appName or forceLegacy:
             uri = base
         else:
@@ -204,6 +194,7 @@ try:
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
         extension = os.path.splitext(dataFile)[1]
+        auth = None
         if headers is None:
             headers = {}
             if extension == '.xml' or dataFile.endswith('managed-schema'):
@@ -212,15 +203,20 @@ try:
                 headers['Content-Type'] = "application/json"
             else:
                 headers['Content-Type'] = "text/plain"
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
 
         files = None
         try:
             if os.path.isfile(dataFile):
                 with open(dataFile,'rb') as payload:
                     if isPut:
-                        response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=payload,verify=isVerify())
+                        response = requests.put(url, auth=auth,headers=headers, data=payload,verify=isVerify())
                     else:
-                        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=payload,verify=isVerify())
+                        response = requests.post(url, auth=auth,headers=headers, data=payload,verify=isVerify())
 
                     return response
             else:
@@ -239,12 +235,18 @@ try:
             sprint("\nAttempting POST of " + type + " definition for '" + id + "' to Fusion.")
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        headers = {}
-        headers['Content-Type'] = "application/json"
+
+        auth = None
+        headers = {'Content-Type': "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+
         url = apiUrl
         if postParams is not None:
             url += "?" + postParams
-        response = requests.post(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+        response = requests.post(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
         url = apiUrl
         if existsChecker(response,payload):
             if args.verbose:
@@ -255,16 +257,15 @@ try:
                 url += "?" + putParams
 
             # if we got here then we tried posting but that didn't work so now we will try a PUT
-            response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+            response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
             # if the PUT says the object exists, then the the likely problem is that  the object isn't linked to the current app
             # check and see if the response complains of the "id not in app" and add a link if needed.
-            if args.linkAndWriteShared and \
-                    (f"{id} not in app" in response.text
-                     or f"The Task with id '{id}' does not exist" in response.text):
+            if (f"{id} not in app" in response.text
+                     or re.search(f"The (Task|Collection|Data Model) with id '{id}' does not exist",response.text) ):
                 lresponse = makeLink(type,id)
                 if lresponse.status_code >= 200 and lresponse.status_code <= 250:
                     #try update again after link is in place
-                    response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload),verify=isVerify())
+                    response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
 
         if response.status_code >= 200 and response.status_code <= 250:
             sprint( "Element " + type + " id: " + id + " PUT/POSTed successfully")
@@ -324,7 +325,14 @@ try:
 
     def makeLink(resourcetype, id):
         type = None
-        if resourcetype in OBJ_TYPES:
+        auth = None
+        headers = {"Content-Type": "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(args.user, args.password)
+
+        if resourcetype in OBJ_TYPES and 'linkType' in OBJ_TYPES[resourcetype]:
           type = OBJ_TYPES[resourcetype]['linkType']
         else:
           type = resourcetype
@@ -334,7 +342,7 @@ try:
         payload = {"subject":"","object":"","linkType":"inContextOf"}
         payload['subject'] = f"{type}:{id}"
         payload['object'] = f'app:{appName}'
-        lresponse = requests.put(lurl, auth=requests.auth.HTTPBasicAuth(args.user, args.password),headers={"Content-Type": "application/json"}, data=json.dumps(payload),verify=isVerify())
+        lresponse = requests.put(lurl, auth=auth,headers=headers, data=json.dumps(payload),verify=isVerify())
         if lresponse and lresponse.status_code < 200 or lresponse.status_code > 250:
             eprint("Non OK response: {}   when linking object {} to App {}".format(str(lresponse.status_code),payload['subject'],appName))
 
@@ -361,15 +369,10 @@ try:
         # POST to /api/apollo/apps?relatedObjects=false to write
 
         for f in appFiles:
-            appsURL = args.protocol + "://" + args.server + ":" + args.port + "/api"
-            if args.f4:
-                appsURL += "/apollo"
+            appsURL = args.server + "/api"
             appsURL += "/apps"
-            postUrl = appsURL
-            putUrl = appsURL + "/" + appName
-            if not args.makeAppCollections:
-                putUrl = putUrl + "?relatedObjects=false"
-                postUrl = postUrl + "?relatedObjects=false"
+            postUrl = appsURL + "?relatedObjects=false"
+            putUrl = appsURL + "/" + appName + "?relatedObjects=false"
 
             response = doHttp(putUrl)
             isPut = response and response.status_code == 200;
@@ -419,7 +422,10 @@ try:
     def sortCollection(e):
         # put signals and signals aggr collections first
         # Perhaps all auto-created collections should be listed here
-        if re.search("_signals_|_rewrite_",e):
+        expr = "_signals_|_rewrite_"
+        if appName is not None:
+            expr = expr + f"|^{appName}_COL.json$|collections/{appName}_COL.json$"
+        if re.search(expr,e):
             e = "1_" + e
         return e
 
@@ -427,9 +433,15 @@ try:
     def isDuplicateFeature(url, feature,usr=None,pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
+        auth = None
         headers = {"Content-Type": "application/json"}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+
         try:
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd), headers=headers, verify=isVerify())
+            response = requests.get(url, auth=auth, headers=headers, verify=isVerify())
             response.raise_for_status()
             currentFeature = json.loads(response.content)
             if args.debug:
@@ -443,18 +455,21 @@ try:
 
     def putFeatures():
         apiUrl = makeBaseUri() + "/collections"
-        files = getFileListing(os.path.join(args.dir,"features"),[])
+        files = getFileListing(os.path.join(args.dir,"collectionFeatures"),[])
         colfiles_o = getFileListForType("collections")
         colfiles = []
         for c in colfiles_o:
-            colfiles.append(c.split('_COL.json')[0])
+            if c.startswith("collections"):
+                #remove an extra char for the path delim
+                c = c.split("collections")[1][1:]
+            colfiles.append(os.path.join(args.dir,"collectionFeatures",c.split('_COL.json')[0]))
 
         params = "_cookie=false"
         for f in files:
             # only process features that have a matching collection upload in the file list
             if f.endswith(f'{getSuffix("features")}') and f.split(getSuffix("features"))[0] in colfiles:
 
-                with open(os.path.join(args.dir,"features",f), 'r') as jfile:
+                with open(f, 'r') as jfile:
                     payload = json.load(jfile)
                     for feature in payload:
                         name = feature["name"]
@@ -498,7 +513,7 @@ try:
                 doPop = payload["solrParams"] and payload["searchClusterId"] == "default"
 
                 # also keep if solrParams.name != the fusion name "id" and args.
-                if payload["solrParams"] and payload['id'] != payload['solrParams']['name'] and args.keepCollAlias:
+                if payload["solrParams"] and payload['id'] != payload['solrParams']['name']:
                     doPop = False
                     debug("Not creating Solr collection named " + payload['solrParams']['name'] )
                 if payload["type"] is not None and payload["type"] == "DATA":
@@ -506,8 +521,7 @@ try:
 
                 if doPop:
                     payload["solrParams"].pop('name', None)
-                # if args.ignoreExternal then don't process any collections in an external cluster
-                if not args.ignoreExternal or payload["searchClusterId"] == "default":
+                if payload["searchClusterId"] == "default":
                     # to skip sub collections add defaultFeatures=false
                     response = doPostByIdThenPut(apiUrl, payload, 'Collection', putParams=params,postParams=params)
                     if response.status_code == 200:
@@ -525,9 +539,16 @@ try:
     def doHttp(url,usr=None, pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
+        auth = None
+        headers = {}
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
         response = None
         try:
-            response = requests.get(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),verify=isVerify())
+            response = requests.get(url, auth=auth,headers=headers,verify=isVerify())
             return response
         except requests.ConnectionError as e:
             eprint(e)
@@ -544,23 +565,40 @@ try:
                 eprint("Non OK response of " + str(response.status_code) + " for URL: " + url)
 
 
-    def getFileListing(path,fileList=[],pathPrefix=''):
-        for root, dirs, files in os.walk(path,topdown=False):
-            for directory in dirs:
-                getFileListing(os.path.join(path,directory),fileList,directory)
-            for file in files:
-                addFile = os.path.join(pathPrefix,file)
-                if addFile not in fileList:
-                  fileList.append(addFile)
+    def getFileListing(path,removePathPrefix=True):
+        """
+        walk the file system and grab files
+
+        :param path:
+        :param fileList:
+        :return: fileList relative to the working directory
+        """
+        #for root, dirs, files in os.walk(path,topdown=True):
+            #for directory in dirs:
+                #getFileListing(os.path.join(path,directory),fileList,directory)
+            #    pass
+        #    for file in files:
+        #        addFile = os.path.join(dirs,file)
+        #        if addFile not in fileList:
+        #          fileList.append(addFile)
+        pathList = list(Path(path).rglob("*"))
+        # now make it a list of strings instead of posixPath objects
+        fileList = []
+        for p in pathList:
+            if p.is_file():
+                fstr = str(p)
+                if removePathPrefix and len(path) > 0 and fstr.startswith(path):
+                    # add 1 to the len of the path to remove the path separator
+                    fstr = fstr[len(path) + 1:]
+                fileList.append(fstr)
         return fileList
 
     def putSchema(colName):
-        schemaUrl = args.protocol + "://" + args.server + ":" + args.port + "/api"
-        if args.f4:
-            schemaUrl += "/apollo"
+        schemaUrl = args.server + "/api"
         schemaUrl += "/collections/" + colName + "/solr-config"
         currentZkFiles = []
         # get a listing of current files via Fusion's solr-config api. This prevents uploading directories which don't exist (unsupported)
+        # this listing needs to look like the relative path of the files themselves so that an existence check can be done for Put vs Post
         zkFilesJson = doHttpJsonGet(schemaUrl + "?recursive=true")
         if zkFilesJson and len(zkFilesJson) > 0:
             for obj in zkFilesJson:
@@ -573,7 +611,7 @@ try:
 
 
         dir = os.path.join(args.dir, "configsets", colName )
-        files = sorted(getFileListing(dir,[]),key=sortSchemafiles)
+        files = sorted(getFileListing(dir),key=sortSchemafiles)
 
         counter = 0;
 
@@ -581,8 +619,9 @@ try:
             sprint("\nUploading Solr config for collection: " + colName)
         for file in files:
             counter += 1
-            #if the file is part of the current configset and is avaliable for upload, upload it.
-            if os.path.isfile(os.path.join(dir,file)):
+            #if the file is part of the current configset and is available for upload, upload it.
+            pathFile = os.path.join(args.dir,"configsets",colName,file)
+            if os.path.isfile(pathFile):
                 isLast = len(files) == counter
                 # see if the file exists and PUT or POST accordingly
                 url = schemaUrl + '/' + file.replace(os.sep,'/')
@@ -590,7 +629,7 @@ try:
                     url += '?reload=true'
                 #PUT to update, POST to add
                 try:
-                    response = doHttpPostPut(url,os.path.join(dir,file), (file in currentZkFiles))
+                    response = doHttpPostPut(url, pathFile, (file in currentZkFiles))
                     response.raise_for_status()
                     if args.verbose:
                         sprint("\tUploaded " + file + " successfully")
@@ -643,6 +682,16 @@ try:
                 flist = getFileListForType(inferType)
                 if isinstance( flist, (list )):
                     flist.append(f)
+            elif f in OBJ_TYPES:
+                dfiles = os.listdir(os.path.join(args.dir,f))
+                for df in dfiles:
+                    inferType = inferTypeFromFile(df)
+                    if inferType:
+                        # grab the global filelist array for this type and stuff in the filename
+                        flist = getFileListForType(inferType)
+                        if isinstance( flist, (list )):
+                            flist.append(os.path.join(f,df))
+
 
 
     def putJobSchedules():
@@ -655,13 +704,13 @@ try:
                 response = doHttpPostPut(url, os.path.join(args.dir,f), True)
                 if response.status_code == 200:
                     if args.verbose:
-                        sprint( "Created/updated Job from " + f)
+                        sprint( "Created/updated Job schedule from " + f)
                 # allow a 404 since we are using the /apollo/apps/{collection} endpoint but the export gives us global jobs as well
                 elif response.status_code != 200 and response.status_code != 404:
                     eprint("Non OK response of " + str(response.status_code) + " when PUTing: " + url)
 
     def migrateReadableScript(data,type):
-        if type.endswith("pipelines") and isinstance(data,dict) and ('stages' in data.keys()):
+        if type.endswith("Pipelines") and isinstance(data,dict) and ('stages' in data.keys()):
             for stage in data['stages']:
                 if isinstance(stage,dict) and ('script' in stage.keys()) and ('readableScript' in stage.keys()):
                     nonReadable = "\n".join(stage["readableScript"])
@@ -680,16 +729,15 @@ try:
                     if args.verbose and isinstance(varReplacements, dict):
                         sprint("Doing substitution for file " + f)
                     payload = traverseAndReplace(payload,f, varReplacements)
-                if args.humanReadable:
-                    migrateReadableScript(payload,type)
 
+                migrateReadableScript(payload,type)
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
                 doPostByIdThenPut(apiUrl, payload, type,None,None,idField,None,None,existsChecker)
 
     def putTemplateFileForType(type, idField=None, existsChecker=None ):
         if not idField:
             idField = 'id'
-        base = args.protocol + "://" + args.server + ":" + args.port + "/"
+        base = args.server + "/"
         apiUrl = base + getApiForType(type)
         for f in getFileListForType(type):
             with open(os.path.join(args.dir,f), 'r') as jfile:
@@ -698,38 +746,22 @@ try:
                     if args.verbose is not None and isinstance(varReplacements, dict):
                         sprint("Doing substitution for file " + f)
                     payload = traverseAndReplace(payload,f, varReplacements)
-                if args.humanReadable:
-                    migrateReadableScript(payload,type)
 
+                migrateReadableScript(payload,type)
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
                 doPostByIdThenPut(apiUrl, payload, type,None,None,idField,None,None,existsChecker)
-
-    def putQueryRewrite():
-        rewriteUrl = makeBaseUri() + "/query-rewrite/instances"
-        # get a listing of current id's so we can create or update
-        qrsFile = os.path.join(args.dir,appName + "_query_rewrite.json")
-        if args.doRewrite and os.path.isfile(qrsFile):
-            with open(qrsFile, 'r') as jfile:
-                jPayload = json.load(jfile);
-                #create = {}
-                #create['create'] = staging
-
-                sprint("Uploading Query Rewrite objects. ")
-                response = doHttpJsonPut(rewriteUrl,jPayload)
-
-                if response.status_code == 200 or response.status_code == 204:
-                    sprint( "Rewrite Staging rules updated.  Republish may be needed")
-                elif response.status_code != 200:
-                    eprint("Non OK response of " + str(response.status_code) + " when doing PUT to: " + rewriteUrl + ' response.text: ' + response.text)
-
 
     def doHttpJsonPut(url,payload, usr=None, pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        headers = {}
-        headers['Content-Type'] = "application/json"
+        headers = {'Content-Type': "application/json"}
+        auth = None
+        if args.jwt is not None:
+            headers["Authorization"] = f'Bearer {args.jwt}'
+        else:
+            auth=requests.auth.HTTPBasicAuth(usr, pswd)
         try:
-            response = requests.put(url, auth=requests.auth.HTTPBasicAuth(usr, pswd),headers=headers, data=json.dumps(payload))
+            response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload))
             return response
         except requests.ConnectionError as e:
             eprint(e)
@@ -754,31 +786,25 @@ try:
         # putApps must be the first export, clusters next.  blobs and collections in either order then pipelines
         putApps()
 
-        # do not update external searchCluster config if ignoreExternal=True
-        if not args.ignoreExternal:
-            putFileForType('searchCluster',True)
 
         putCollections()
-        if not args.skipCFeatures:
-            putFeatures()
+        putFeatures()
         putBlobs()
 
         putFileForType('parsers')
-        putFileForType('index-pipelines')
-        putFileForType('query-pipelines')
-        putFileForType('index-profiles')
-        putFileForType('query-profiles')
+        putFileForType('indexPipelines')
+        putFileForType('queryPipelines')
+        putFileForType('indexProfiles')
+        putFileForType('queryProfiles')
         putFileForType('tasks')
-        putFileForType('spark/jobs',None,None,lambda r,p: sparkChecker(r,p))
+        putFileForType('sparkJobs',None,None,lambda r,p: sparkChecker(r,p))
 
-        putFileForType("datasources",None,None,lambda r,p: datasourceChecker(r,p))
+        putFileForType("dataSources",None,None,lambda r,p: datasourceChecker(r,p))
         putJobSchedules()
 
-        putQueryRewrite()
-        if not args.f4:
-            putTemplateFileForType('zones')
-            putTemplateFileForType('templates')
-            putFileForType('data-models')
+        putTemplateFileForType('zones')
+        putTemplateFileForType('templates')
+        putFileForType('dataModels')
 
     def sparkChecker(response,payload):
         exists = False
@@ -801,39 +827,22 @@ try:
 
     if __name__ == "__main__":
         scriptName = os.path.basename(__file__)
-        # sample line: 'usage: getProject.py [-h] [-l] [--protocol PROTOCOL] [-s SERVER] [--port PORT]'
+        # sample line: 'usage: putProject.py [-h] [-d DIR] [-s SERVER]'
         description = ('______________________________________________________________________________\n'
                     'Take a folder containing .json files (produced by getApp.py) and POST the contents \n'
-                    'to a Fusion instance.  App and Collections will be created/altered as needed, \n'
-                    'as will Pipelines, Parsers, Profiles and Datasources. NOTE: if launching from \n'
-                    'putProject.sh, defaults will be pulled from the bash environment plus values \n'
-                    'set in bin/lw.env.sh\n'
+                    'to a Fusion instance.  App and Collection definitions will be created/modified as needed, \n'
+                    'as will Pipelines, Parsers, Profiles and Datasources. \n'
                     '______________________________________________________________________________'
                        )
 
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
         parser.add_argument("-d","--dir", help="Input directory, required.", required=True)#,default="default"
-        parser.add_argument("--doRewrite",help="Import query rewrite objects (if any), default: False.",default=False,action="store_true")# default=False
-        parser.add_argument("--f4",help="Use the /apollo/ section of request urls as required by 4.x:  Default=False.",default=False,action="store_true")# default=False
         parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
-        parser.add_argument("--protocol", help="Protocol,  Default: ${lw_PROTOCOL} or 'http'.")
         parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
-        parser.add_argument("--port", help="Port, Default: ${lw_PORT} or 6764") #,default="8764"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
-        parser.add_argument("--ignoreExternal", help="Ignore (do not process) configurations for external Solr clusters (*_SC.json) and their associated collections (*_COL.json). default: False",default=False,action="store_true")
-        parser.add_argument("--keepCollAlias",help="Do not create Solr collection when the Fusion Collection name does not match the Solr collection. "
-                                           "Instead, fail if the collection does not exist.  default: True.",default=False,action="store_true")# default=False
-
-        parser.add_argument("--humanReadable",help="This param reverses the getApp mutations by copying human readable script to the script element of pipeline stages, default: False.",default=False,action="store_true")# default=False
-        parser.add_argument("--linkAndWriteShared",
-                            help="In F5, shared Objects do not update unless they are already part of the target App. This flag reverts to 4.2.3 behavior i.e. link and overwrite, default=False",
-                            default=False, action="store_true")
-        parser.add_argument("--makeAppCollections",help="Do create the default collections named after the App default: False.",default=False,action="store_true")# default=False
-        parser.add_argument("--skipCFeatures",help="Skip loadeing of Collection Features files (usually only needed when collections are created), default: False. "
-                                                   ,default=False,action="store_true")# default=False
-
+        parser.add_argument("--jwt",help="JWT token for authentication.  If set, password is ignored",default=None)
 
         parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
@@ -846,7 +855,7 @@ try:
 except ImportError as ie:
     print("Failed to Import from module: ",
           ie.name,
-          "\ninstall the module via the pip installer\n\nExample:\npip3 install ",
+          "\ninstall the module via the pip installer\n\nExample:\n\t$ pip3 install ",
           ie.name, file=sys.stderr)
     sys.exit(1)
 except Exception as e:
@@ -855,6 +864,8 @@ except Exception as e:
         msg = e.msg
     elif hasattr(e,'text'):
             msg = e["text"]
+    elif hasattr(e,'txt'):
+        msg = e["txt"]
     else:
         msg = str(e)
 

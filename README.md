@@ -11,26 +11,79 @@ Version 2.0.x makes several changes from the original GetPut utilities
   * countdiff
   * getBlob
   * export/import of query_rewrite rules (mostly because it is slow, rarely used, and the APIs are problematic)
-* input parameters are simplified.  This includes unifying the various protocol, port, server parameters into a single URL param as well as removing some parameters which only exist for legacy 4.x support.
-
+* input parameters are simplified.  This includes:
+   * unifying the various protocol, port, server parameters into a single URL param
+   * removing some parameters which only exist for legacy 4.x support.
+   * removing some parameters that only exist to support a small e.g. 10% use-case
+  
 The original GetPut utilities were designed with a primary use case being PS people who want to look at, extract, manipulate, share or otherwise get at the Fusion objects that make up a Project.
 Over time, other needs have surfaced
 * back up to source control
 * transform for migration to another tier i.e. dev, tst, prod
 
-This version will focus more on these use cases and add additional features intended to ease packaging and migration tasks:
-* output file filtering
+This version will focus more on these use cases while assuming that other utilities can/will:
+* filter out unwanted files removed
 * jsonPath based search/replace transformations
 
 ##  Import or Export Fusion Apps
 
 Use `getApp.sh` to export a Fusion App and store it as files in an output directory.
 ```markdown
+usage: getApp.py [-h] [-a APP] [--collectCFeatures] [-d DIR] [-s SVR]
+                 [-u USER] [--password PASSWORD] [--jwt JWT] [-v] [--debug]
+                 [--noVerify] [-z ZIP]
+
+______________________________________________________________________________
+Get artifacts associated with a Fusion app and store them together in a folder 
+as flat files, .json, and .zip files. These can later be pushed back into the same, 
+or different, Fusion instance as needed. NOTE: if launching from getApp.sh, 
+defaults will be pulled from the bash environment plus values from bin/lw.env.sh
+______________________________________________________________________________
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -a APP, --app APP     App to export
+  --collectCFeatures    Export the Collection Features.  default=False
+  -d DIR, --dir DIR     Output directory, default: '${app}_ccyymmddhhmm'.
+  -s SVR, --server SVR  Server url e.g. http://localhost:80, 
+                        default: ${lw_IN_SERVER} or 'localhost'.
+  -u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
+  --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
+  --jwt JWT             JWT token for access to Fusion.  If set, user and password will be ignored
+  -v, --verbose         Print details, default: False.
+  --debug               Print debug messages while running, default: False.
+  --noVerify            Do not verify SSL certificates if using https, default: False.
+  -z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server, 
+                        default: None.
+
 
 ```
 Use `putApp` to import a Fusion App from files in an input directory.
 
 ```markdown
+usage: putApp.py [-h] -d DIR [--failOnStdError] [-s SVR] [-u USER]
+                 [--password PASSWORD] [--jwt JWT] [--debug] [--noVerify] [-v]
+                 [--varFile VARFILE]
+
+______________________________________________________________________________
+Take a folder containing .json files (produced by getApp.py) and POST the contents 
+to a Fusion instance.  App and Collection definitions will be created/modified as needed, 
+as will Pipelines, Parsers, Profiles and Datasources. 
+______________________________________________________________________________
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -d DIR, --dir DIR     Input directory, required.
+  --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
+  -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
+  -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
+  --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
+  --jwt JWT             JWT token for authentication.  If set, password is ignored
+  --debug               Print debug messages while running, default: False.
+  --noVerify            Do not verify SSL certificates if using https, default: False.
+  -v, --verbose         Print details, default: False.
+  --varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
+
 
 ```
 
@@ -38,13 +91,8 @@ Use `putApp` to import a Fusion App from files in an input directory.
 
 Several variable defaults are contained in the 'lw.env.sh' script. Most of the bash scripts in Quickstart invoke this to set these defaults in the local environment.  
 To override, either edit your copy of the script or `export KEY=VALUE` in the parent bash environment.  
- 1. lw_PREFIX - (for Fusion 3.x i.e. `getProject` and `putProject` only) A prefix value used to identify collections, and pipelines which constitute a project.  
- All fusion objects belonging to the same project need to start with this value or else `getProject.sh` will not be 
- able to find them.
- 2. lw_PROTOCOL - http (default) or https
- 3. lw_OUT_SERVER - the server name or IP used for exporting (default localhost)
- 4. lw_IN_SERVER - the server name or IP used for importing (default localhost) 
- 5. lw_PORT - the fusion port i.e. 8764
+ 3. lw_OUT_SERVER - the server name or IP used for exporting (default https://localhost)
+ 4. lw_IN_SERVER - the server name or IP used for importing (default https://localhost) 
  6. lw_USERNAME - the name of the fusion user performing operations (default admin)
  7. lw_PASSWORD - the password of the fusion user performing operations (default password123)
  

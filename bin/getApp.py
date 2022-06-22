@@ -66,10 +66,6 @@ try:
         ,"features": { "ext": "CF"}
     }
 
-    # default is to skip "_signals","_signals_aggr","_job_reports","_query_rewrite","_query_rewrite_staging","_user_prefs"
-    # as listed in the skipCollections param
-    SKIP_COLLECTIONS = []
-    SKIP_PREFIX = []
     searchClusters = {}
     collections = []
     PARAM_SIZE_LIMIT = 6400
@@ -103,8 +99,6 @@ try:
 
 
     def initArgs():
-        global SKIP_COLLECTIONS
-        global SKIP_PREFIX
         env = {}  # some day we may get better environment passing
         debug('initArgs start')
 
@@ -411,28 +405,29 @@ try:
         processTypedElementFunc(elements, type)
 
 
-    def jsonToFile(jData, type,filename):
+    def jsonToFile(jData, type,filename, altSubDir=None):
         # replace spaces in filename to make the files sed friendly
         filename2 = filename.replace(' ', '_')
-        outpath = os.path.join(args.dir,type)
-        if type and not os.path.isdir(outpath):
-            os.makedirs(outpath)
+        if altSubDir is None:
+            subDir = type
+        else:
+            subDir = altSubDir
 
-        # bail out if the filename starts with any of the SKIP_PREFIX terms
-        keep = shouldKeepFile(filename2)
-        if keep:
-            with open(os.path.join(args.dir, type,filename2), 'w') as outfile:
-                # sorting keys makes the output source-control friendly.  Do we also want to strip out
-                if "updates" in jData:
-                    jData.pop('updates', None)
-                if "modifiedTime" in jData:
-                    jData.pop('modifiedTime', None)
-                if "version" in jData:
-                    jData.pop('version', None)
+        if type and not os.path.isdir(os.path.join(args.dir,subDir)):
+            os.makedirs(os.path.join(args.dir,subDir))
 
-                outfile.write(json.dumps(jData, indent=4, sort_keys=True,
-                                         separators=(', ', ': ')))
-                outfile.close()
+
+        with open(os.path.join(args.dir, subDir,filename2), 'w') as outfile:
+            # sorting keys makes the output source-control friendly.  Do we also want to strip out
+            if "updates" in jData:
+                jData.pop('updates', None)
+            if "modifiedTime" in jData:
+                jData.pop('modifiedTime', None)
+            if "version" in jData:
+                jData.pop('version', None)
+
+            outfile.write(json.dumps(jData, indent=4, sort_keys=True,separators=(', ', ': ')))
+            outfile.close()
 
 
     def collectById(elements, type, keyField='id', nameSpaceField=None):
@@ -489,48 +484,23 @@ try:
 
 
     def collectFeatures(elements,type="features"):
-        if args.collectCFeatures:
-            for col in elements:
-                features = elements[col]
-                filename = applySuffix(col.replace(':', '_').replace('/', '_'), type)
-                jsonToFile(features,type,filename)
+        for col in elements:
+            features = elements[col]
+            filename = applySuffix(col.replace(':', '_').replace('/', '_'), type)
+            jsonToFile(features,type,filename,altSubDir="collectionFeatures")
 
     def collectCollections(elements, type="collections"):
         keep = []
         for e in elements:
             id = e['id']
-            if shouldKeepCollection(id, e):
-                keep.append(e)
-                # make sure associated clusters are exported
-                # keep track of the default collections we are exporting so that schema can be exported as well
-                # do not export schema for collections on non-default clusters.  Best to not mess with remote config
-                if e['searchClusterId'] == 'default':
-                    collections.append(id)
+            keep.append(e)
+            # make sure associated clusters are exported
+            # keep track of the default collections (global) we are exporting so that schema can be exported as well
+            # do not export schema for collections on non-default clusters.  Best to not mess with remote config
+            if e['searchClusterId'] == 'default':
+                collections.append(id)
+
         collectById(keep, type)
-
-    def shouldKeepFile(filename):
-        '''
-        :param id: collection name
-        :return: True if the collection and configset should be written out
-        '''
-        # Keep everything except what's in the Skip list
-        for cType in SKIP_PREFIX:
-            if filename.startswith(cType):
-                verbose(f"Skipping export of {id} file")
-                return False
-        return True
-
-    def shouldKeepCollection(id, e):
-        '''
-        :param id: collection name
-        :return: True if the collection and configset should be written out
-        '''
-        # Keep everything except what's in the Skip list
-        for cType in SKIP_COLLECTIONS:
-            if id.endswith(cType):
-                verbose(f"Skipping export of {id} collection")
-                return False
-        return True
 
 
     def collectIndexPipelines(elements):
@@ -567,7 +537,6 @@ try:
 
         # parser.add_argument_group('bla bla bla instruction go here and they are really long \t and \n have tabs and\n newlines')
         parser.add_argument("-a", "--app", help="App to export")  # ,default="lwes_"
-        parser.add_argument("--collectCFeatures", help="Export the Collection Features.  default=fFlse", default=False, action="store_true")
         parser.add_argument("-d", "--dir",
                             help="Output directory, default: '${app}_ccyymmddhhmm'.")  # ,default="default"
         parser.add_argument("-s", "--server", metavar="SVR",
