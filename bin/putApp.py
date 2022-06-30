@@ -47,6 +47,7 @@ try:
     # array of ext =  [ OBJ_TYPES[k]['ext'] for k in OBJ_TYPES.keys() ] or [v['ext'] for v in OBJ_TYPES.values() if 'ext' in v]
     # rework above to be keyed by extension v[1]['ext'] contining value of {type, filelist}
     EXT_FILES_MAP = dict((v[1]['ext'],{'type':v[0],'filelist':v[1]['filelist']}) for v in [v for v in OBJ_TYPES.items() ])
+    TAG_SUFFIX: str = "_mergeForm"
 
     def getSuffix(type):
         if type in OBJ_TYPES:
@@ -708,15 +709,38 @@ try:
                 # allow a 404 since we are using the /apollo/apps/{collection} endpoint but the export gives us global jobs as well
                 elif response.status_code != 200 and response.status_code != 404:
                     eprint("Non OK response of " + str(response.status_code) + " when PUTing: " + url)
+    def mergeReadableScript(element,rawTag):
+        mergetag = rawTag + TAG_SUFFIX
+        if mergetag in element:
+            script = "\n".join(element[mergetag])
+            element[rawTag] = script  ##overwrite script with the version used in diff/merge
+            element.pop(mergetag,None)
 
     def migrateReadableScript(data,type):
-        if type.endswith("Pipelines") and isinstance(data,dict) and ('stages' in data.keys()):
-            for stage in data['stages']:
-                if isinstance(stage,dict) and ('script' in stage.keys()) and ('readableScript' in stage.keys()):
-                    nonReadable = "\n".join(stage["readableScript"])
-                    stage["script"] = nonReadable
-                    stage.pop("readableScript",None)
+        xformTags = [
+            "script" + TAG_SUFFIX # scala script, python
+            ,"transformScala" + TAG_SUFFIX # PBL
+            ,"transformSQL" + TAG_SUFFIX # PBL
+            ,"sql" + TAG_SUFFIX # sqlTemplate
+            ,"sparkSQL" + TAG_SUFFIX # sqlTemplate, headTail, tokenPhraseSpellCorrection
+            ,"misspellingSQL" + TAG_SUFFIX # synonym detection
+            ,"phraseSQL" + TAG_SUFFIX # synonym detection
+            ,"rollupSql" + TAG_SUFFIX # sql_template
+            #,"analyzerConfigQuery" + TAG_SUFFIX # candidate json from some 4 sisters
+            #,"notes" + TAG_SUFFIX # candidate for multi-line descript/notes field
+        ]
 
+        if isinstance(data,dict) and type.endswith("Pipeline") and ('stages' in data ):
+            for stage in data['stages']:
+                if isinstance(stage,dict) and ('script' in stage):
+                    if ('script' + TAG_SUFFIX) in stage:
+                        mergeReadableScript(stage,"script")
+                    if ('condition' + TAG_SUFFIX) in stage:
+                        mergeReadableScript(stage,'condition')
+        elif isinstance(e,dict) and type == "sparkJobs":
+            for tag in xformTags:
+                if tag in e:
+                    mergeReadableScript(e,e[tag.split("_")[0]])
 
     def putFileForType(type,forceLegacy=False, idField=None, existsChecker=None ):
         if not idField:

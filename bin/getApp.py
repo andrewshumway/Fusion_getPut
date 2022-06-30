@@ -48,19 +48,19 @@ try:
 
     OBJ_TYPES = {
         "fusionApps": { "ext": "APP"}
-        ,"zones":{"ext":"ZN", "urlTypex":"zone"}
-        ,"templates":{"ext":"TPL", "urlTypex":"template"}
-        ,"dataModels":{"ext":"DM", "urlTypex":"data-model"}
-        ,"indexPipelines": { "ext": "IPL" , "urlTypex":"index-pipeline"}
-        ,"queryPipelines": { "ext": "QPL" , "urlTypex":"query-pipeline"}
-        ,"indexProfiles": { "ext": "IPF"  , "urlTypex":"index-profile"}
-        ,"queryProfiles": { "ext": "QPF" , "urlTypex":"query-profile"}
-        ,"parsers": { "ext": "PS" , "urlTypex":"parser"}
-        ,"dataSources": { "ext": "DS" , "urlTypex":"datasource"}
+        ,"zones":{"ext":"ZN"}
+        ,"templates":{"ext":"TPL"}
+        ,"dataModels":{"ext":"DM"}
+        ,"indexPipelines": { "ext": "IPL" }
+        ,"queryPipelines": { "ext": "QPL" }
+        ,"indexProfiles": { "ext": "IPF"  }
+        ,"queryProfiles": { "ext": "QPF" }
+        ,"parsers": { "ext": "PS" }
+        ,"dataSources": { "ext": "DS" }
         ,"collections": { "ext": "COL", "urlType":"collection"}
-        ,"jobs": { "ext": "JOB" , "urlTypex":"job"}
-        ,"tasks": { "ext": 'TSK' ,"urlTypex":"task"}
-        ,"sparkJobs": { "ext": 'SPRK' , "filelist": [] , "urlTypex":"spark"}
+        ,"jobs": { "ext": "JOB" }
+        ,"tasks": { "ext": 'TSK' }
+        ,"sparkJobs": { "ext": 'SPRK' , "filelist": [] }
         ,"blobs": { "ext": "BLOB" ,"urlType":"blob"}
         # features can't be fetched by id in the export API but come along with the collections.
         ,"features": { "ext": "CF"}
@@ -69,6 +69,7 @@ try:
     searchClusters = {}
     collections = []
     PARAM_SIZE_LIMIT = 6400
+    TAG_SUFFIX: str = "_mergeForm"
 
     def eprint(*args, **kwargs):
         print(*args, file=sys.stderr, **kwargs)
@@ -429,6 +430,39 @@ try:
             outfile.write(json.dumps(jData, indent=4, sort_keys=True,separators=(', ', ': ')))
             outfile.close()
 
+    def makeScriptReadable(element: object, tag: str) :
+        if tag in element:
+            script = element[tag]
+            ##update element with split script
+            element[tag + TAG_SUFFIX] = script.splitlines()
+
+
+    def makeDiffFriendly(e, type):
+        xformTags = [
+            "script" # scala script, python
+            ,"transformScala" # PBL
+            ,"transformSQL" # PBL
+            ,"sql" # sqlTemplate
+            ,"sparkSQL" # sqlTemplate, headTail, tokenPhraseSpellCorrection
+            ,"misspellingSQL" # synonym detection
+            ,"phraseSQL" # synonym detection
+            ,"rollupSql" # sql_template
+            #,"analyzerConfigQuery" # candidate json from some 4 sisters
+            #,"notes" # candidate for multi-line descript/notes field
+        ]
+
+        if isinstance(e, dict) and type.endswith("Pipelines") and ('stages' in e.keys()):
+            for stage in e['stages']:
+                if isinstance(stage, dict) and ('script' in stage.keys()):
+                    stgKeys = stage.keys()
+                    if 'script' in stgKeys:
+                        makeScriptReadable(stage,"script")
+                    if 'condition' in stgKeys and '\n' in stage['condition']:
+                        makeScriptReadable(stage,"condition")
+        elif isinstance(e,dict) and type == "sparkJobs":
+            for tag in xformTags:
+                if tag in e:
+                    makeScriptReadable(e,tag)
 
     def collectById(elements, type, keyField='id', nameSpaceField=None):
         for e in elements:
@@ -439,12 +473,7 @@ try:
                 continue
             verbose("Processing '" + type + "' object: " + id)
             # spin thru e and look for 'stages' with 'script'
-            if isinstance(e, dict) and type.endswith("Pipelines") and ('stages' in e.keys()):
-                for stage in e['stages']:
-                    if isinstance(stage, dict) and ('script' in stage.keys()):
-                        script = stage['script']
-                        # Turn the lines into an array and add it back for readability
-                        stage["readableScript"] = script.splitlines()
+            makeDiffFriendly(e,type)
 
             # some jobs have : in the id, some blobs have a path.  Remove problem characters in filename
             if nameSpaceField is not None and nameSpaceField in e:
@@ -454,10 +483,7 @@ try:
                    filename = applySuffix( re.sub(r"[/\\:.\s]",'_',ns) + '_' + id.replace(':', '_').replace('/', '_'),type)
             else:
                 filename = applySuffix(id.replace(':', '_').replace('/', '_'), type)
-
-
             jsonToFile(e,type,filename)
-
 
     def collectProfileById(elements, type):
         # this code is tentative.  The pipeline elements contains a sub object called 'ALL' which then contains the list we want
@@ -479,8 +505,7 @@ try:
         if mylist is not None:
             collectById(mylist, type)
         elif len(elements) > 1:
-            eprint("Green code expects a single ALL element or array of Profiles but found " + len(
-                elements) + " code needs attention")
+            eprint("Unknown JSON structure encountered.  Profiles subtree should be 'ALL' element or array of Profiles.")
 
 
     def collectFeatures(elements,type="features"):
