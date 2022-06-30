@@ -1,6 +1,6 @@
 # Overview
 
-Utilities for getting or putting a 4.x Fusion App or a set of objects in Fusion 3.x which share a common name prefix.
+Utilities for getting or putting a 4.x or F5.x Fusion App or a set of objects in Fusion 3.x which share a common name prefix.
 
 This set of utilities can be used to import and export, tier migration, or backup.
 Other utilities for renaming projects and performing rudimentary search/replace operations
@@ -52,7 +52,7 @@ default: ${lw_IN_SERVER} or 'localhost'.
 --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
 --jwt                 JWT token.  if passed, password is ignored
 -v, --verbose         Print details, default: False.
---f4                  Use the /apollo/ section of request urls as required by 4.x.  Default=False.
+--f4                  Use the /apollo/ section of request urls as required by 4.x rather than the default F5 format.  Default=False.
 --debug               Print debug messages while running, default: False.
 --noVerify            Do not verify SSL certificates if using https, default: False.
 -z ZIP, --zip ZIP     Path and name of the Zip file to read from rather than using an export from --server,
@@ -81,7 +81,7 @@ optional arguments:
 -h, --help            show this help message and exit
 -d DIR, --dir DIR     Input directory, required.
 --doRewrite           Import query rewrite objects (if any), default: False.
---f4                  Use the /apollo/ section of request urls as required by 4.x:  Default=False.
+--f4                  Use the /apollo/ section of request urls as required by 4.x rather than the default F5 format:  Default=False.
 --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
 --protocol PROTOCOL   Protocol,  Default: ${lw_PROTOCOL} or 'http'.
 -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
@@ -124,7 +124,7 @@ optional arguments:
 
 Several variable defaults are contained in the 'lw.env.sh' script. Most of the bash scripts in Quickstart invoke this to set these defaults in the local environment.  
 To override, either edit your copy of the script or `export KEY=VALUE` in the parent bash environment.  
- 1. lw_PREFIX - (for Fusion 3.x i.e. `getProject` and `putProject` only) A prefix value used to identify collections, and pipelines which constitute a project.  
+
  All fusion objects belonging to the same project need to start with this value or else `getProject.sh` will not be 
  able to find them.
  2. lw_PROTOCOL - http (default) or https
