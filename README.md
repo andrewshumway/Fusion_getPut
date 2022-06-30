@@ -18,12 +18,15 @@ Version 2.0.x makes several changes from the original GetPut utilities
   
 The original GetPut utilities were designed with a primary use case being PS people who want to look at, extract, manipulate, share or otherwise get at the Fusion objects that make up a Project.
 Over time, other needs have surfaced
-* back up to source control
-* transform for migration to another tier i.e. dev, tst, prod
+* explode the App export zip to  individual files for:
+  * manipulation
+  * search to answer questions like "what else uses this thing" 
+  * back up to source control
+* see scripts in a diff-friendly format
 
 This version will focus more on these use cases while assuming that other utilities can/will:
-* filter out unwanted files removed
-* jsonPath based search/replace transformations
+* filter out unwanted files 
+* jsonPath based search/replace transformations 
 
 ##  Import or Export Fusion Apps
 
@@ -49,7 +52,7 @@ optional arguments:
                         default: ${lw_IN_SERVER} or 'localhost'.
   -u USER, --user USER  Fusion user name, default: ${lw_USER} or 'admin'.
   --password PASSWORD   Fusion Password,  default: ${lw_PASSWORD} or 'password123'.
-  --jwt JWT             JWT token for access to Fusion.  If set, user and password will be ignored
+  --jwt JWT             JWT token for access to Fusion.  If set, --user and --password will be ignored
   -v, --verbose         Print details, default: False.
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
@@ -73,12 +76,12 @@ ______________________________________________________________________________
 
 optional arguments:
   -h, --help            show this help message and exit
-  -d DIR, --dir DIR     Input directory, required.
+  -d DIR, --dir DIR     Input directory (containing a *_APP.json file), required.
   --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
   -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.
   -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
   --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
-  --jwt JWT             JWT token for authentication.  If set, password is ignored
+  --jwt JWT             JWT token for authentication.  If set, --password is ignored
   --debug               Print debug messages while running, default: False.
   --noVerify            Do not verify SSL certificates if using https, default: False.
   -v, --verbose         Print details, default: False.

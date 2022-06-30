@@ -570,7 +570,7 @@ try:
                         help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
         parser.add_argument("--password",
                         help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
-        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, user and password will be ignored",default=None)
+        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, --user and --password will be ignored",default=None)
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--debug", help="Print debug messages while running, default: False.", default=False,

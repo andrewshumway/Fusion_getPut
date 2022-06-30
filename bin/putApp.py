@@ -854,19 +854,19 @@ try:
         # sample line: 'usage: putProject.py [-h] [-d DIR] [-s SERVER]'
         description = ('______________________________________________________________________________\n'
                     'Take a folder containing .json files (produced by getApp.py) and POST the contents \n'
-                    'to a Fusion instance.  App and Collection definitions will be created/modified as needed, \n'
-                    'as will Pipelines, Parsers, Profiles and Datasources. \n'
+                    'to a Fusion instance.  Fusion may create App and OOTB Collection definitions if needed\n'
+                    'but files in the --dir folder will overwrite what Fusion makes. \n'
                     '______________________________________________________________________________'
                        )
 
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
-        parser.add_argument("-d","--dir", help="Input directory, required.", required=True)#,default="default"
+        parser.add_argument("-d","--dir", help="Input directory (with a *_APP.json file), required.", required=True)#,default="default"
         parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
         parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
-        parser.add_argument("--jwt",help="JWT token for authentication.  If set, password is ignored",default=None)
+        parser.add_argument("--jwt",help="JWT token for authentication.  If set, --password is ignored",default=None)
 
         parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
