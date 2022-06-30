@@ -730,17 +730,17 @@ try:
             #,"notes" + TAG_SUFFIX # candidate for multi-line descript/notes field
         ]
 
-        if isinstance(data,dict) and type.endswith("Pipeline") and ('stages' in data ):
+        if isinstance(data,dict) and type.endswith("Pipelines") and ('stages' in data ):
             for stage in data['stages']:
                 if isinstance(stage,dict) and ('script' in stage):
                     if ('script' + TAG_SUFFIX) in stage:
                         mergeReadableScript(stage,"script")
                     if ('condition' + TAG_SUFFIX) in stage:
                         mergeReadableScript(stage,'condition')
-        elif isinstance(e,dict) and type == "sparkJobs":
+        elif isinstance(data,dict) and type == "sparkJobs":
             for tag in xformTags:
-                if tag in e:
-                    mergeReadableScript(e,e[tag.split("_")[0]])
+                if tag in data:
+                    mergeReadableScript(data,tag.split("_")[0])
 
     def putFileForType(type,forceLegacy=False, idField=None, existsChecker=None ):
         if not idField:
