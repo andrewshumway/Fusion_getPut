@@ -427,8 +427,20 @@ try:
             if "version" in jData:
                 jData.pop('version', None)
 
+            if not args.noStageIdMunge and "stages" in jData:
+                stages = jData["stages"]
+                for i, stage in enumerate(stages):
+                    if "secretSourceStageId" in stage:
+                        stage.pop("secretSourceStageId",None)
+                    stage["id"] = mungeStageId(stage, str(i))
+
             outfile.write(json.dumps(jData, indent=4, sort_keys=True,separators=(', ', ': ')))
             outfile.close()
+
+    def mungeStageId(stage, idxStr):
+        type = stage.get("type","")
+        label = stage.get("label","")
+        return re.sub("[ -]","_",type + ":" + label + ":" + idxStr)
 
     def makeScriptReadable(element: object, tag: str) :
         if tag in element:
@@ -553,8 +565,8 @@ try:
         # sample line: 'usage: getProject.py [-h] [-l] [--protocol PROTOCOL] [-s SERVER] [--port PORT]'
         description = ('______________________________________________________________________________\n'
                        'Get artifacts associated with a Fusion app and store them together in a folder \n'
-                       'as flat files, .json, and .zip files. These can later be pushed back into the same, \n'
-                       'or different, Fusion instance as needed. NOTE: if launching from getApp.sh, \n'
+                       'as subfolders, and flat files. These files can be stored, manipulate and uploaded, \n'
+                       'to a Fusion instance as needed. NOTE: if launching from getApp.sh, \n'
                        'defaults will be pulled from the bash environment plus values from bin/lw.env.sh\n'
                        '______________________________________________________________________________'
                        )
@@ -581,8 +593,11 @@ try:
         parser.add_argument("-z", "--zip",
                             help="Path and name of the Zip file to read from rather than using an export from --server, \ndefault: None.",
                             default=None)
+        parser.add_argument( "--noStageIdMunge", help="Experimental: may become default.  If True, do not munge pipeline stage ids. default: False.", default=False,
+                             action="store_true")
 
-        # print("args: " + str(sys.argv))
+
+                            # print("args: " + str(sys.argv))
         args = parser.parse_args()
 
         main()

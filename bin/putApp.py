@@ -853,11 +853,12 @@ try:
         scriptName = os.path.basename(__file__)
         # sample line: 'usage: putProject.py [-h] [-d DIR] [-s SERVER]'
         description = ('______________________________________________________________________________\n'
-                    'Take a folder containing .json files (produced by getApp.py) and POST the contents \n'
-                    'to a Fusion instance.  Fusion may create App and OOTB Collection definitions if needed\n'
-                    'but files in the --dir folder will overwrite what Fusion makes. \n'
+                    'Take a folder containing .json files or directories of .json files such as that  \n'
+                    ' (produced by getApp.py) and POST the contents to a running Fusion instance.  \n'
+                    'Fusion may create App and OOTB Collection definitions if needed but files under \n'
+                    'the --dir folder may overwrite portions of these auto-create objects. \n'
                     '______________________________________________________________________________'
-                       )
+        )
 
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )
 
