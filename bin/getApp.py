@@ -371,6 +371,7 @@ try:
         # call the function passing elements and type
         processTypedElementFunc(elements, type)
 
+    # Recurse through the entire JSON tree and sort all key/values recursively
     def sortedDeep(d):
         def makeTuple(v): return (*v,) if isinstance(v,(list,dict)) else (v,)
         if isinstance(d,list):
