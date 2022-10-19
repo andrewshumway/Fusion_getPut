@@ -241,7 +241,10 @@ try:
                     exportParams = makeExportParamsFromJson(j)
                     ## in addition to processing all of the zip files from exportParam sets, we need to output
                     # APP and possibly features but don't grab blobs and collections.  Those need to come from full zips
-                    j['objects'].pop('blobs')
+                    if 'blobs' in j['objects']:
+                        j['objects'].pop('blobs')
+                    else:
+                        debug("blobs key does not exist")
                     j['objects'].pop('collections')
 
                     verbose(f"Extracting contents of downloaded APP {args.app}")
