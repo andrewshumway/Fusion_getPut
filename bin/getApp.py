@@ -157,10 +157,13 @@ try:
         if pswd is None:
             pswd = args.password
 
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
+        if args.apiKey is not None:
+            headers['x-api-key'] = args.apiKey
         else:
-            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+            if args.jwt is not None:
+                headers["Authorization"] = f'Bearer {args.jwt}'
+            else:
+                auth=requests.auth.HTTPBasicAuth(usr, pswd)
 
         verify = not args.noVerify
         try:
@@ -599,7 +602,8 @@ try:
                         help="Fusion user name, default: ${lw_USER}.")  # ,default="admin"
         parser.add_argument("--password",
                         help="Fusion Password,  default: ${lw_PASSWORD}.")  # ,default="password123"
-        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, --user and --password will be ignored",default=None)
+        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, --user, --password will be ignored",default=None)
+        parser.add_argument("--apiKey",help="API Key for access to Fusion.  If set, --user, --password and --jwt will be ignored",default=None)
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
         parser.add_argument("--debug", help="Print debug messages while running, default: False.", default=False,
