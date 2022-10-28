@@ -21,11 +21,11 @@
 #  script will list or export all Datasources, Index Pipelines, and Query Pipelines who's name begines with 'lwes_'
 ##############################################
 
-if [ -z "$lw_OUT_SERVER" ] ; then
-    export lw_OUT_SERVER="https://localhost"
+if [ -z "$lw_OUT_URL" ] ; then
+    export lw_OUT_URL="https://localhost"
 fi
-if [ -z "$lw_IN_SERVER" ] ; then
-    export lw_IN_SERVER="https://localhost"
+if [ -z "$lw_IN_URL" ] ; then
+    export lw_IN_URL="https://localhost"
 fi
 if [ -z "$lw_USERNAME" ] ; then
     export lw_USERNAME="admin"

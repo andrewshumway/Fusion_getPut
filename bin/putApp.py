@@ -110,7 +110,7 @@ try:
 
         #setting come from command line but if not set then pull from environment
         if args.server == None:
-            args.server = initArgsFromMaps("lw_OUT_SERVER","localhost",os.environ,env)
+            args.server = initArgsFromMaps("lw_OUT_URL","localhost",os.environ,env)
 
         if args.user == None:
             args.user = initArgsFromMaps("lw_USERNAME","admin",os.environ,env)
@@ -864,7 +864,7 @@ try:
 
         parser.add_argument("-d","--dir", help="Input directory (with a *_APP.json file), required.", required=True)#,default="default"
         parser.add_argument("--failOnStdError",help="Exit the program if StdErr is written to i.e. fail when any call fails.",default=False,action="store_true")
-        parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_SERVER} or 'localhost'.") # default="localhost"
+        parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_URL} or 'localhost'.") # default="localhost"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
         parser.add_argument("--jwt",help="JWT token for authentication.  If set, --password is ignored",default=None)

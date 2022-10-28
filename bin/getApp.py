@@ -587,11 +587,11 @@ try:
         parser.add_argument("-d", "--dir",
                             help="Output directory, default: '${app}_ccyymmddhhmm'.")  # ,default="default"
         parser.add_argument("-s", "--server", metavar="SVR",
-                            help="Server url e.g. http://localhost:80, \ndefault: ${lw_IN_SERVER} or 'localhost'.")  # default="localhost"
+                            help="Server url e.g. http://localhost:80, \ndefault: ${lw_OUT_URL}.")  # default="http://localhost:8764"
         parser.add_argument("-u", "--user",
-                        help="Fusion user name, default: ${lw_USER} or 'admin'.")  # ,default="admin"
+                        help="Fusion user name, default: ${lw_USER}.")  # ,default="admin"
         parser.add_argument("--password",
-                        help="Fusion Password,  default: ${lw_PASSWORD} or 'password123'.")  # ,default="password123"
+                        help="Fusion Password,  default: ${lw_PASSWORD}.")  # ,default="password123"
         parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, --user and --password will be ignored",default=None)
         parser.add_argument("-v", "--verbose", help="Print details, default: False.", default=False,
                             action="store_true")  # default=False
