@@ -195,7 +195,6 @@ try:
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
         extension = os.path.splitext(dataFile)[1]
-        auth = None
         if headers is None:
             headers = {}
             if extension == '.xml' or dataFile.endswith('managed-schema'):
@@ -204,13 +203,8 @@ try:
                 headers['Content-Type'] = "application/json"
             else:
                 headers['Content-Type'] = "text/plain"
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
-        else:
-            auth=requests.auth.HTTPBasicAuth(usr, pswd)
 
-
-        files = None
+        auth = setAuthHeaders(usr,pswd,headers)
         try:
             if os.path.isfile(dataFile):
                 with open(dataFile,'rb') as payload:
@@ -236,13 +230,8 @@ try:
             sprint("\nAttempting POST of " + type + " definition for '" + id + "' to Fusion.")
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-
-        auth = None
         headers = {'Content-Type': "application/json"}
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
-        else:
-            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+        auth = setAuthHeaders(usr,pswd,headers)
 
         url = apiUrl
         if postParams is not None:
@@ -325,13 +314,8 @@ try:
                 eprint("Non OK response: " + str(response.status_code) + " when processing " + f)
 
     def makeLink(resourcetype, id):
-        type = None
-        auth = None
         headers = {"Content-Type": "application/json"}
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
-        else:
-            auth = requests.auth.HTTPBasicAuth(args.user, args.password)
+        auth = setAuthHeaders(args.usr,args.passwordpswd,headers)
 
         if resourcetype in OBJ_TYPES and 'linkType' in OBJ_TYPES[resourcetype]:
           type = OBJ_TYPES[resourcetype]['linkType']
@@ -434,12 +418,8 @@ try:
     def isDuplicateFeature(url, feature,usr=None,pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        auth = None
         headers = {"Content-Type": "application/json"}
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
-        else:
-            auth = requests.auth.HTTPBasicAuth(usr, pswd)
+        auth = setAuthHeaders(usr,pswd,headers)
 
         try:
             response = requests.get(url, auth=auth, headers=headers, verify=isVerify())
@@ -540,12 +520,8 @@ try:
     def doHttp(url,usr=None, pswd=None):
         usr = getDefOrVal(usr,args.user)
         pswd = getDefOrVal(pswd,args.password)
-        auth = None
         headers = {}
-        if args.jwt is not None:
-            headers["Authorization"] = f'Bearer {args.jwt}'
-        else:
-            auth=requests.auth.HTTPBasicAuth(usr, pswd)
+        auth = setAuthHeaders(usr,pswd,headers)
 
         response = None
         try:
@@ -775,15 +751,30 @@ try:
                 #doPostByIdThenPut(apiUrl, payload, type,None, idField)
                 doPostByIdThenPut(apiUrl, payload, type,None,None,idField,None,None,existsChecker)
 
-    def doHttpJsonPut(url,payload, usr=None, pswd=None):
-        usr = getDefOrVal(usr,args.user)
-        pswd = getDefOrVal(pswd,args.password)
-        headers = {'Content-Type': "application/json"}
+
+    def setAuthHeaders(usr=None,pswd=None,headers={}):
+        """
+        set api-key header if args.apiKey
+        else set jwt auth header if args.jwt
+        :param headers:
+        :return: True if an Auth header was set else False
+        """
         auth = None
+        if args.apiKey is not None:
+            headers['x-api-key'] = args.apiKey
         if args.jwt is not None:
             headers["Authorization"] = f'Bearer {args.jwt}'
         else:
             auth=requests.auth.HTTPBasicAuth(usr, pswd)
+
+        return auth
+
+
+    def doHttpJsonPut(url,payload, usr=None, pswd=None):
+        usr = getDefOrVal(usr,args.user)
+        pswd = getDefOrVal(pswd,args.password)
+        headers = {'Content-Type': "application/json"}
+        auth = setAuthHeaders(usr,pswd,headers)
         try:
             response = requests.put(url, auth=auth,headers=headers, data=json.dumps(payload))
             return response
@@ -867,8 +858,8 @@ try:
         parser.add_argument("-s","--server", metavar="SVR", help="Fusion server to send data to. Default: ${lw_OUT_URL} or 'localhost'.") # default="localhost"
         parser.add_argument("-u","--user", help="Fusion user, default: ${lw_USER} or 'admin'.") #,default="admin"
         parser.add_argument("--password", help="Fusion password,  default: ${lw_PASSWORD} or 'password123'.") #,default="password123"
-        parser.add_argument("--jwt",help="JWT token for authentication.  If set, --password is ignored",default=None)
-
+        parser.add_argument("--jwt",help="JWT token for access to Fusion.  If set, --user, --password will be ignored",default=None)
+        parser.add_argument("--apiKey",help="API Key for access to Fusion.  If set, --user, --password and --jwt will be ignored",default=None)
         parser.add_argument("--debug",help="Print debug messages while running, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
