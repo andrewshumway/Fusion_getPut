@@ -371,7 +371,6 @@ try:
         # call the function passing elements and type
         processTypedElementFunc(elements, type)
 
-
     def jsonToFile(jData, filename):
         # replace spaces in filename to make the files sed friendly
         filename2 = filename.replace(' ', '_')
