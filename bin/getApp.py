@@ -371,17 +371,7 @@ try:
         # call the function passing elements and type
         processTypedElementFunc(elements, type)
 
-    # Recurse through the entire JSON tree and sort all key/values recursively
-    def sortedDeep(d):
-        def makeTuple(v): return (*v,) if isinstance(v,(list,dict)) else (v,)
-        if isinstance(d,list):
-            return sorted( map(sortedDeep,d) ,key=makeTuple )
-        if isinstance(d,dict):
-            return { k: sortedDeep(d[k]) for k in sorted(d)}
-        return d
-
     def jsonToFile(jData, filename):
-        jData = sortedDeep(jData)
         # replace spaces in filename to make the files sed friendly
         filename2 = filename.replace(' ', '_')
 
