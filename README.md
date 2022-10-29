@@ -3,11 +3,12 @@
 Utilities for getting or putting a 5.x Fusion App, manipulating the output eleents, and PUTting the elements 
 back to Fusion (not necessarily the same source and target instances).
 
-##This version of getPut (in the V2.0.x branch) does not fully support Fusion 4.x.If you want Fusion 3/4 support, use the version in the [Main branch](https://github.com/andrewshumway/Fusion_getPut/tree/main).
+##This version of getPut (in the V2.0.x branch) does not fully support Fusion 4.x.If you want Fusion 3 or 4
+support, use the version in the [v.1.0.x branch](https://github.com/andrewshumway/Fusion_getPut/tree/v1.0.x).
 
 Version 2.0.x makes several changes from the original GetPut utilities
 * Utilities intended for support of Fusion 3.x are removed.  This includes get/put Project and renameProject
-* Utilities which work well enough in 3, 4, or 5.x, but are not related to app import/export are not included
+* Utilities which work well enough in 3, 4, or 5.x, but are not related to app import/export are **removed icluding**:
   * replaceTokens
   * copyPipeiine
   * countdiff
@@ -26,7 +27,7 @@ Over time, other needs have surfaced
   * back up to source control
 * see scripts in a diff-friendly format
 
-This version will focus more on these use cases while assuming that other utilities can/will:
+This version will focus more on the above use cases while assuming that other utilities can/will:
 * filter out unwanted files 
 * jsonPath based search/replace transformations 
 
