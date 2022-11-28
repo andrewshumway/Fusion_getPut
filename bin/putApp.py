@@ -315,7 +315,7 @@ try:
 
     def makeLink(resourcetype, id):
         headers = {"Content-Type": "application/json"}
-        auth = setAuthHeaders(args.usr,args.passwordpswd,headers)
+       auth = setAuthHeaders(args.user,args.password,headers)
 
         if resourcetype in OBJ_TYPES and 'linkType' in OBJ_TYPES[resourcetype]:
           type = OBJ_TYPES[resourcetype]['linkType']
