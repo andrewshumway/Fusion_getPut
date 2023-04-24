@@ -235,7 +235,7 @@ try:
         try:
 
             debug("calling requests.get url:" + url + " headers:" + str(headers))
-            verbose(f"Getting JSON elements of APP {args.app} from {args.server}")
+            sprint(f"Getting JSON elements of APP {args.app} from {args.server}")
             response = doHttp(url,headers=headers)
             if response is not None and response.status_code == 200:
                 contentType = response.headers['Content-Type']
@@ -254,7 +254,7 @@ try:
                     else:
                         debug("collections key does not exist")
 
-                    verbose(f"Extracting contents of downloaded APP {args.app}")
+                    sprint(f"Extracting contents of downloaded APP {args.app}")
                     extractAppFromZip(objects=j,validateAppName=True)
                     url = makeBaseUri() + "/objects/export"
                     index = 0
@@ -455,7 +455,7 @@ try:
         if tag in element:
             script = element[tag]
             ##update element with split script
-            element[tag + TAG_SUFFIX] = script.splitlines()
+            element[tag + TAG_SUFFIX] = script.split('\n')
 
 
     def makeDiffFriendly(e, type):
