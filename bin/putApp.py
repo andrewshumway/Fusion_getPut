@@ -843,12 +843,12 @@ try:
     if __name__ == "__main__":
         scriptName = os.path.basename(__file__)
         # sample line: 'usage: putProject.py [-h] [-d DIR] [-s SERVER]'
-        description = ('______________________________________________________________________________\n'
-                    'Take a folder containing .json files or directories of .json files such as that  \n'
-                    ' (produced by getApp.py) and POST the contents to a running Fusion instance.  \n'
-                    'Fusion may create App and OOTB Collection definitions if needed but files under \n'
-                    'the --dir folder may overwrite portions of these auto-create objects. \n'
-                    '______________________________________________________________________________'
+        description = ('___________________________________________________________________________________\n'
+                    'Take a folder containing .json files or directories of .json files, such as that  \n'
+                    'produced by getApp.py, and POST the contents to a running Fusion instance.  \n'
+                    'Existing Fusion objects will be overwritten as needed but existing Solr collections\n'
+                    'will not be recreted.\n'
+                    '___________________________________________________________________________________'
         )
 
         parser = argparse.ArgumentParser(description=description, formatter_class=RawTextHelpFormatter )

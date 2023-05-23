@@ -573,8 +573,8 @@ try:
         scriptName = os.path.basename(__file__)
         # sample line: 'usage: getProject.py [-h] [-l] [--protocol PROTOCOL] [-s SERVER] [--port PORT]'
         description = ('______________________________________________________________________________\n'
-                       'Get artifacts associated with a Fusion app and store them together in a folder \n'
-                       'as subfolders, and flat files. These files can be stored, manipulate and uploaded, \n'
+                       'Get artifacts associated with a Fusion APP and store them as flat files in a \n'
+                       'folder and subfolders.  These files can be stored, manipulate and uploaded, \n'
                        'to a Fusion instance as needed. NOTE: if launching from getApp.sh, \n'
                        'defaults will be pulled from the bash environment plus values from bin/lw.env.sh\n'
                        '______________________________________________________________________________'
