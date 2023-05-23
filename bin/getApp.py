@@ -460,7 +460,7 @@ try:
 
     def makeDiffFriendly(e, type):
         xformTags = [
-            "script" # scala script, python
+            "script" # scala script, python, javaScript
             ,"transformScala" # PBL
             ,"transformSQL" # PBL
             ,"sql" # sqlTemplate
@@ -469,7 +469,7 @@ try:
             ,"phraseSQL" # synonym detection
             ,"rollupSql" # sql_template
             #,"analyzerConfigQuery" # candidate json from some 4 sisters
-            #,"notes" # candidate for multi-line descript/notes field
+            #,"notes" # candidate for multi-line description/notes field
         ]
 
         if isinstance(e, dict) and type.endswith("Pipelines") and ('stages' in e.keys()):

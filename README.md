@@ -1,9 +1,9 @@
 # Overview
 
-Utilities for getting or putting a 5.x Fusion App, manipulating the output eleents, and PUTting the elements 
-back to Fusion (not necessarily the same source and target instances).
+Utilities for getting or putting a 5.x Fusion App, unpacking and manipulating the output elements, and PUTting the elements 
+back to the same or different Fusion instance.
 
-##This version of getPut (in the V2.0.x branch) does not fully support Fusion 4.x.If you want Fusion 3 or 4
+## This version of getPut (in the V2.0.x branch) does not fully support Fusion 4.x.If you want Fusion 3 or 4
 support, use the version in the [v.1.0.x branch](https://github.com/andrewshumway/Fusion_getPut/tree/v1.0.x).
 
 Version 2.0.x makes several changes from the original GetPut utilities
@@ -67,29 +67,29 @@ Use `putApp` to import a Fusion App from files in an input directory.
 
 ```markdown
 usage: putApp.py [-h] -d DIR [--failOnStdError] [-s SVR] [-u USER]
-[--password PASSWORD] [--jwt JWT] [--apiKey APIKEY] [--debug]
-[--noVerify] [-v] [--varFile VARFILE]
+                 [--password PASSWORD] [--jwt JWT] [--apiKey APIKEY] [--debug]
+                 [--noVerify] [-v] [--varFile VARFILE]
 
 ______________________________________________________________________________
 Take a folder containing .json files or directories of .json files such as that  
-(produced by getApp.py) and POST the contents to a running Fusion instance.  
-Fusion may create App and OOTB Collection definitions if needed but files under
-the --dir folder may overwrite portions of these auto-create objects.
+ (produced by getApp.py) and POST the contents to a running Fusion instance.  
+Fusion may create App and OOTB Collection definitions if needed but files under 
+the --dir folder may overwrite portions of these auto-create objects. 
 ______________________________________________________________________________
 
 optional arguments:
--h, --help            show this help message and exit
--d DIR, --dir DIR     Input directory (with a *_APP.json file), required.
---failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
--s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_URL} or 'localhost'.
--u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
---password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
---jwt JWT             JWT token for access to Fusion.  If set, --user, --password will be ignored
---apiKey APIKEY       API Key for access to Fusion.  If set, --user, --password and --jwt will be ignored
---debug               Print debug messages while running, default: False.
---noVerify            Do not verify SSL certificates if using https, default: False.
--v, --verbose         Print details, default: False.
---varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
+  -h, --help            show this help message and exit
+  -d DIR, --dir DIR     Input directory (with a *_APP.json file), required.
+  --failOnStdError      Exit the program if StdErr is written to i.e. fail when any call fails.
+  -s SVR, --server SVR  Fusion server to send data to. Default: ${lw_OUT_URL} or 'localhost'.
+  -u USER, --user USER  Fusion user, default: ${lw_USER} or 'admin'.
+  --password PASSWORD   Fusion password,  default: ${lw_PASSWORD} or 'password123'.
+  --jwt JWT             JWT token for access to Fusion.  If set, --user, --password will be ignored
+  --apiKey APIKEY       API Key for access to Fusion.  If set, --user, --password and --jwt will be ignored
+  --debug               Print debug messages while running, default: False.
+  --noVerify            Do not verify SSL certificates if using https, default: False.
+  -v, --verbose         Print details, default: False.
+  --varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
 ```
 
 ##### Environment variables from `bin/lw.env.sh` file
