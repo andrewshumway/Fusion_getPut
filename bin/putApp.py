@@ -387,8 +387,9 @@ try:
         However we have seen times when a synonyms or stopword file failed to load because a schema change
         had not been reloaded.  The 500 error complained about a missing znode called schema.xml
 
-        While not perfect, ordering the files so that the end of the list has schema followed by solrconfig.xml
-        seems to get around the ordering problem.  THis doesn't mean that a dependency going the other direction
+        While not perfect, ordering the files so that the end of the list has schema followed by solrconfig.xml and finally
+        configoverlay.json seems to get around the ordering problem in most situations.
+        THis doesn't mean that a dependency going the other direction
         could not cause a problem though.  If that happens, a manual reload of individual files may be needed.
 
         :param e:
@@ -396,12 +397,14 @@ try:
         """
         # put signals and signals aggr collections first
         # Perhaps all auto-created collections should be listed here
-        if not re.search("solrconfig.xml|schema",e):
+        if not re.search("solrconfig.xml|schema|configoverlay",e):
             e = "1_" + e
         elif  re.search("schema",e):
             e = "2_" + e
-        elif  re.search("schema",e):
+        elif  re.search("solrconfig.xml",e):
             e = "3_" + e
+        elif re.search("configoverlay",e):
+            e = "4_" + e
         return e
 
     def sortCollection(e):
