@@ -808,7 +808,6 @@ try:
         putCollections()
         putFeatures()
         putBlobs()
-
         putFileForType('dataModels')
         putFileForType('parsers')
         putFileForType('indexPipelines')
