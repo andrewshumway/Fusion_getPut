@@ -809,6 +809,7 @@ try:
         putFeatures()
         putBlobs()
 
+        putFileForType('dataModels')
         putFileForType('parsers')
         putFileForType('indexPipelines')
         putFileForType('queryPipelines')
@@ -822,7 +823,6 @@ try:
 
         putTemplateFileForType('zones')
         putTemplateFileForType('templates')
-        putFileForType('dataModels')
 
     def sparkChecker(response,payload):
         exists = False
