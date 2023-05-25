@@ -93,7 +93,7 @@ try:
 
     # called when the OBJ_TYPES element for a given type uses a version specific api i.e. when needed api is different for 4.0.1 vs 4.0.2
     # typeObj will contain the OBJ_TYPES element for the given type and typObj must contain a versionedApi element.  Depending on the
-    # version of the target Fusion machine, an api will be selected.  In the target version is not listed the default will be returned;
+    # version of the target Fusion machine, an api will be selected.  In the target version is not listed the default will be returned
     def getVersionedApi(type, typeObj, default):
         api = default
         vapi = typeObj['versionedApi']
@@ -187,7 +187,7 @@ try:
                 #search and see if our path is a ${var} match and if so replace with value from varFile
                 value = substituteVariable(obj, objName, varMap)
         else:
-            value = obj;
+            value = obj
 
         return value
 
@@ -289,11 +289,11 @@ try:
                 contentType = blobj["contentType"]
                 path = blobj["path"]
 
-            url = makeBaseUri(True) + "/blobs" + path;
+            url = makeBaseUri(True) + "/blobs" + path
             if resourceType:
                 url += "?resourceType=" + resourceType
 
-            headers = {};
+            headers = {}
             if contentType:
                 headers['Content-Type'] = contentType
 
@@ -343,7 +343,7 @@ try:
             f = appFiles[0]
             with open(os.path.join(args.dir,f), 'r') as jfile:
                 #Capture the id in the global so that /apps/APP_ID type urls can be used to maintain APP links
-                payload = json.load(jfile);
+                payload = json.load(jfile)
                 appName = payload['id']
 
         else:
@@ -360,7 +360,7 @@ try:
             putUrl = appsURL + "/" + appName + "?relatedObjects=false"
 
             response = doHttp(putUrl)
-            isPut = response and response.status_code == 200;
+            isPut = response and response.status_code == 200
             url = putUrl if isPut else postUrl
 
             response = doHttpPostPut(url, os.path.join(args.dir,f), isPut)
@@ -490,7 +490,7 @@ try:
         params = "_cookie=false"
         for f in sortedFiles:
             with open(os.path.join(args.dir,f), 'r') as jfile:
-                payload = json.load(jfile);
+                payload = json.load(jfile)
                 # pop off name for collections pointing at "default".  That way the local collections get created in Solr.
                 # keep the name for external (non-default) collections since those only need the Fusion reference created.
 
@@ -593,7 +593,7 @@ try:
         dir = os.path.join(args.dir, "configsets", colName )
         files = sorted(getFileListing(dir),key=sortSchemafiles)
 
-        counter = 0;
+        counter = 0
 
         if len(files) > 0:
             sprint("\nUploading Solr config for collection: " + colName)
@@ -826,7 +826,7 @@ try:
     def sparkChecker(response,payload):
         exists = False
         status = response.status_code
-        text = response.text;
+        text = response.text
         exists = status == 409
         if not exists:
             exists = ( status == 500 or status == 400) and text.find( payload['id'] +" already exists") > 0
@@ -836,7 +836,7 @@ try:
         #old fusion sends 409, 4.1 500, 4.2 400
         exists = False
         status = response.status_code
-        text = response.text;
+        text = response.text
         exists = status == 409
         if not exists:
             exists = ( status == 500 or status == 400) and text.find("Data source id '" + payload['id'] +"' already exists") > 0

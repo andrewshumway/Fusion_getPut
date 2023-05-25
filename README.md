@@ -3,8 +3,8 @@
 Utilities for getting or putting a 5.x Fusion App, unpacking and manipulating the output elements, and PUTting the elements 
 back to the same or different Fusion instance.
 
-## This version of getPut (in the V2.0.x branch) does not fully support Fusion 4.x.If you want Fusion 3 or 4
-support, use the version in the [v.1.0.x branch](https://github.com/andrewshumway/Fusion_getPut/tree/v1.0.x).
+## This version of getPut (in the V2.0.x branch) does not set the `/apollo/` path on Fusion urls and so is not compatible 
+with older Fusion 4 versions.  If you want Fusion 3 or 4 compatibility, use the version in the [v.1.0.x branch](https://github.com/andrewshumway/Fusion_getPut/tree/v1.0.x).
 
 Version 2.0.x makes several changes from the original GetPut utilities
 * Utilities intended for support of Fusion 3.x are removed.  This includes get/put Project and renameProject
@@ -17,17 +17,17 @@ Version 2.0.x makes several changes from the original GetPut utilities
 * input parameters are simplified.  This includes:
    * unifying the various protocol, port, server parameters into a single URL param
    * removing some parameters which only exist for legacy 4.x support.
-   * removing some parameters that only exist to support a small e.g. 10% use-case
+   * removing some parameters that only exist to support a small i.e. 10% use-case
   
-The original GetPut utilities were designed with a primary use case being PS people who want to look at, extract, manipulate, share or otherwise get at the Fusion objects that make up a Project.
-Over time, other needs have surfaced
+The original GetPut utilities were primarily designed for PS people who want to look at, extract, manipulate, share or otherwise get at the Fusion objects that make up a Project.
+Over time, other needs have surfaced:
 * explode the App export zip to  individual files for:
   * manipulation
   * search to answer questions like "what else uses this thing" 
   * back up to source control
 * see scripts in a diff-friendly format
 
-This version will focus more on the above use cases while assuming that other utilities can/will:
+This version will focus more on the newer use cases while assuming that other utilities can/will:
 * filter out unwanted files 
 * jsonPath based search/replace transformations 
 
@@ -40,8 +40,8 @@ usage: getApp.py [-h] [-a APP] [-d DIR] [-s SVR] [-u USER]
                  [--debug] [--noVerify] [-z ZIP] [--noStageIdMunge]
 
 ______________________________________________________________________________
-Get artifacts associated with a Fusion app and store them together in a folder 
-as subfolders, and flat files. These files can be stored, manipulate and uploaded, 
+Get artifacts associated with a Fusion APP and store them as flat files in a 
+folder and subfolders.  These files can be stored, manipulate and uploaded, 
 to a Fusion instance as needed. NOTE: if launching from getApp.sh, 
 defaults will be pulled from the bash environment plus values from bin/lw.env.sh
 ______________________________________________________________________________
@@ -70,12 +70,12 @@ usage: putApp.py [-h] -d DIR [--failOnStdError] [-s SVR] [-u USER]
                  [--password PASSWORD] [--jwt JWT] [--apiKey APIKEY] [--debug]
                  [--noVerify] [-v] [--varFile VARFILE]
 
-______________________________________________________________________________
-Take a folder containing .json files or directories of .json files such as that  
- (produced by getApp.py) and POST the contents to a running Fusion instance.  
-Fusion may create App and OOTB Collection definitions if needed but files under 
-the --dir folder may overwrite portions of these auto-create objects. 
-______________________________________________________________________________
+___________________________________________________________________________________
+Take a folder containing .json files or directories of .json files, such as that  
+produced by getApp.py, and POST the contents to a running Fusion instance.  
+Existing Fusion objects will be overwritten as needed but existing Solr collections
+will not be recreted.
+___________________________________________________________________________________
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -90,7 +90,7 @@ optional arguments:
   --noVerify            Do not verify SSL certificates if using https, default: False.
   -v, --verbose         Print details, default: False.
   --varFile VARFILE     Protected variables file used for password replacement (if needed) default: None.
-```
+~~~~```
 
 ##### Environment variables from `bin/lw.env.sh` file
 

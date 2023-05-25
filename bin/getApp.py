@@ -95,7 +95,7 @@ try:
     def applySuffix(f, type):
         suf = OBJ_TYPES[type]["ext"]
         if not f.endswith(suf):
-            return f + getSuffix(type);
+            return f + getSuffix(type)
         return f + ".json"
 
 
