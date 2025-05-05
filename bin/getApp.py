@@ -42,6 +42,8 @@ try:
     # from StringIO import StringIO
     from zipfile import ZipFile
     from argparse import RawTextHelpFormatter
+    import copy
+    import urllib.parse
 
     # get current dir of this script
     cwd = os.path.dirname(os.path.realpath(sys.argv[0]))
@@ -68,7 +70,7 @@ try:
 
     searchClusters = {}
     collections = []
-    PARAM_SIZE_LIMIT = 6400
+    PARAM_SIZE_LIMIT = 6200
     TAG_SUFFIX: str = "_mergeForm"
 
     def eprint(*args, **kwargs):
@@ -174,54 +176,72 @@ try:
             eprint(e)
 
 
+    def measureParamSize(params):
+        """
+        Measure the URL-encoded size of the given parameters.
+        """
+        return len(urllib.parse.urlencode(params, doseq=True))
+
     def makeExportParamsFromJson(j):
         """
-        Make n export URL containing all of the needed id えぇめんts existing in the objects.json file
-        :param j:
-        :return　list of sized dictionaries of params such that none exceeds 6.5k:
+        Build multiple param dictionaries so that none exceeds PARAM_SIZE_LIMIT.
         """
-        url = makeBaseUri() + "/objects/export"
-        allParams = []
-        params = {"filterPolicy":"system","deep":"false"}
-        #allParams.insert(0,params)
+        if j is None or "objects" not in j:
+            return []
 
-        if j is None or not "objects" in j:
-            return allParams
+        # We keep a list of parameter dicts
+        allParams = []
+        # Always start a new param dict with default export flags
+        currentParams = {"filterPolicy": "system", "deep": "false"}
 
         objects = j["objects"]
-        # save the fusionApps[0] element
-        if "fusionApps" in objects and isinstance(objects["fusionApps"],list):
+        
+        # Store the first fusionApp object for reference
+        if "fusionApps" in objects and isinstance(objects["fusionApps"], list) and objects["fusionApps"]:
             OBJ_TYPES["fusionApps"]["appDef"] = objects["fusionApps"][0]
-
-        keys = OBJ_TYPES.keys()
-
-        for key in keys:
-            if key in objects:
-                items = objects[key]
-
-                itms = []
-                for item in items:
-                    if isinstance(item,dict) \
-                            and "id" in item \
-                            and not (key == "blobs" and item["id"].startswith("prefs-")):
-                        itms.append(item["id"])
-
-                if isinstance(itms, list) and "urlType" in OBJ_TYPES[key]:
-                    # check and see if adding this set of params would push us over the limit.
-                    # If so, store off the smaller params set in allParams and start a new one
-                    if len(str(params)) + len(str(itms)) > PARAM_SIZE_LIMIT:
-                        allParams.insert(0,params)
-                        params = {"filterPolicy":"system","deep":"false"}
-                        params[OBJ_TYPES[key]["urlType"] + ".ids"] = itms
-                    # otherwise add to the current params list since we are under the size limit
+        
+        for objType, objInfo in OBJ_TYPES.items():
+            if objType not in objects:
+                continue  # skip if there's no matching object list
+            items = objects[objType]
+            
+            # Skip items that lack an "id" or are "prefs-..." blobs
+            validIds = []
+            for item in items:
+                if isinstance(item, dict) and "id" in item:
+                    if not (objType == "blobs" and item["id"].startswith("prefs-")):
+                        validIds.append(item["id"])
+            
+            # For object types that have a "urlType", they become query parameters
+            if "urlType" in objInfo:
+                paramKey = f"{objInfo['urlType']}.ids"
+                
+                for theId in validIds:
+                    # Build a test param dict to see if adding this ID fits
+                    # within the PARAM_SIZE_LIMIT
+                    testParams = copy.deepcopy(currentParams)
+                    if paramKey not in testParams:
+                        testParams[paramKey] = []
+                    testParams[paramKey].append(theId)
+                    
+                    if measureParamSize(testParams) > PARAM_SIZE_LIMIT:
+                        # Close out the old param dict if it has more than just the defaults
+                        if len(currentParams) > 2 or paramKey in currentParams:
+                            allParams.append(currentParams)
+                        
+                        # Start a new param dict with just the current ID
+                        currentParams = {"filterPolicy": "system", "deep": "false", paramKey: [theId]}
                     else:
-                        params[OBJ_TYPES[key]["urlType"] + ".ids"] = itms
-
-        ## add any fragment params in to the results.  For small apps, this may be everything
-        if len(params) > 1 and not params in allParams:
-            allParams.insert(0,params)
+                        # It fits, so update the currentParams in place
+                        if paramKey not in currentParams:
+                            currentParams[paramKey] = []
+                        currentParams[paramKey].append(theId)
+        
+        # Add the final param dict if there is anything beyond defaults
+        if len(currentParams) > 2:
+            allParams.append(currentParams)
+        
         return allParams
-
 
 
     def doGetJsonApp():
@@ -261,7 +281,7 @@ try:
                     for params in exportParams:
                         if args.verbose:
                             index += 1
-                            sprint(f"\nFetching Zip export from {url} params set {index}")
+                            sprint(f"\nFetching Zip export from {url} params set {index} out of {len(exportParams)} sets")
                         zipfile = doHttpZipGet( url,params=params)
                         extractAppFromZip(zipfile,validateAppName=False)
 

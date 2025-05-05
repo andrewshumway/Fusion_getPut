@@ -359,7 +359,12 @@ try:
             postUrl = appsURL + "?relatedObjects=false"
             putUrl = appsURL + "/" + appName + "?relatedObjects=false"
 
+            # now PUT blob
+            if args.verbose:
+                sprint("Uploading App configuration to  " + putUrl)
+
             response = doHttp(putUrl)
+
             isPut = response and response.status_code == 200
             url = putUrl if isPut else postUrl
 
