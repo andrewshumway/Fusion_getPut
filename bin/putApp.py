@@ -792,10 +792,31 @@ try:
 
     def fetchFusionVersion():
         global fusionVersion
-        url = makeBaseUri() + "/configurations"
+        # Use the command-line value if provided
+        if hasattr(args, "fusionVersion") and args.fusionVersion:
+            fusionVersion = args.fusionVersion
+            if args.debug:
+                sprint(f"Using user-supplied Fusion version: {fusionVersion}")
+            return
+        if args.debug:
+            sprint("No user-supplied Fusion version, attempting to fetch from server configuration.")
+        url = makeBaseUri(True)
         configurations = doHttpJsonGet(url)
-        if configurations is not None and configurations["app.version"]:
-            fusionVersion = configurations["app.version"]
+        # Now look for 'version' instead of 'app.version', and avoid KeyError
+        if configurations is not None:
+            version_val = configurations.get("version")
+            if args.debug:
+                sprint(f"Configuration fetch result: {configurations}")
+            if version_val:
+                fusionVersion = version_val
+                if args.debug:
+                    sprint(f"Fetched Fusion version from server: {fusionVersion}")
+            else:
+                if args.debug:
+                    sprint("No 'version' key found in server configuration response.")
+        else:
+            if args.debug:
+                sprint("Failed to fetch server configuration; configurations is None.")
 
     def main():
         initArgs()
@@ -871,6 +892,7 @@ try:
         parser.add_argument("--noVerify",help="Do not verify SSL certificates if using https, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("-v","--verbose",help="Print details, default: False.",default=False,action="store_true")# default=False
         parser.add_argument("--varFile",help="Protected variables file used for password replacement (if needed) default: None.",default=None)
+        parser.add_argument("--fusionVersion", help="Fusion version of the destination instance. If not set, will be fetched from the server.")
 
         args = parser.parse_args()
         main()
